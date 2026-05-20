@@ -25,34 +25,36 @@ export function useArcTestnet() {
   const hasMetaMask = typeof window !== 'undefined' && !!window.ethereum
 
   // Fetch USDC balance from Arc Testnet RPC
-  const fetchBalance = useCallback(async (address) => {
-    if (!address) return
-    try {
-      // Use fetch to call RPC directly — no ethers needed for balance check
-      const response = await fetch(ARC_TESTNET.rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'eth_call',
-          params: [{
-            to: ARC_TESTNET.usdcAddress,
-            data: `0x70a08231000000000000000000000000${address.slice(2).padStart(64, '0')}`,
-          }, 'latest'],
-          id: 1,
-        }),
-      })
-      const data = await response.json()
-      if (data.result && data.result !== '0x') {
-        const raw = BigInt(data.result)
-        setBalance(formatUsdc(raw))
-      } else {
-        setBalance('0.000000')
-      }
-    } catch {
+ const fetchBalance = useCallback(async (address) => {
+  if (!address) return
+  try {
+    // On Arc Testnet, USDC is the NATIVE token — use eth_getBalance
+    const response = await fetch(ARC_TESTNET.rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_getBalance',
+        params: [address, 'latest'],
+        id: 1,
+      }),
+    })
+
+    const json = await response.json()
+
+    if (json.result && json.result !== '0x0' && json.result !== '0x') {
+      const raw = BigInt(json.result)
+      // Arc native USDC has 6 decimals
+      const formatted = (Number(raw) / 1_000_000).toFixed(6)
+      setBalance(formatted)
+    } else {
       setBalance('0.000000')
     }
-  }, [])
+  } catch (err) {
+    console.error('Balance fetch error:', err)
+    setBalance('0.000000')
+  }
+}, [])
 
   // Connect wallet
   const connect = useCallback(async () => {
@@ -94,98 +96,85 @@ export function useArcTestnet() {
   }, [hasMetaMask, fetchBalance])
 
   // Send USDC on Arc Testnet
-  const sendUsdc = useCallback(async ({ to, amount }) => {
-    if (!account || !isCorrectNetwork) throw new Error('Not connected to Arc Testnet')
+ const sendUsdc = useCallback(async ({ to, amount }) => {
+  if (!account || !isCorrectNetwork) throw new Error('Not connected to Arc Testnet')
+  setIsLoading(true)
+  setError(null)
 
-    setIsLoading(true)
-    setError(null)
+  try {
+    const startTime = Date.now()
 
-    try {
-      const startTime = Date.now()
+    // Convert amount to hex — Arc USDC is native with 6 decimals
+    const rawAmount = BigInt(Math.round(parseFloat(amount) * 1_000_000))
+    const amountHex = '0x' + rawAmount.toString(16)
 
-      // Encode ERC-20 transfer(address, uint256)
-      const rawAmount = parseUsdc(amount)
-      const amountHex = rawAmount.toString(16).padStart(64, '0')
-      const toHex = to.slice(2).padStart(64, '0')
-      const data = `0xa9059cbb${toHex}${amountHex}`
+    // Get gas price
+    const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
 
-      // Estimate gas
-      const gasEstimate = await window.ethereum.request({
-        method: 'eth_estimateGas',
-        params: [{
-          from: account,
-          to: ARC_TESTNET.usdcAddress,
-          data,
-        }],
-      })
-
-      // Get gas price (USDC-denominated on Arc)
-      const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
-
-      // Send transaction
-      const txHash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: account,
-          to: ARC_TESTNET.usdcAddress,
-          data,
-          gas: gasEstimate,
-          gasPrice,
-        }],
-      })
-
-      // Wait for receipt by polling
-      let receipt = null
-      let attempts = 0
-      while (!receipt && attempts < 30) {
-        await new Promise(r => setTimeout(r, 500))
-        const result = await fetch(ARC_TESTNET.rpcUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'eth_getTransactionReceipt',
-            params: [txHash],
-            id: 1,
-          }),
-        })
-        const data = await result.json()
-        if (data.result) receipt = data.result
-        attempts++
-      }
-
-      const settlementTime = Date.now() - startTime
-
-      // Get gas used cost in USDC
-      const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 0
-      const gasPriceNum = parseInt(gasPrice, 16)
-      const gasCostRaw = BigInt(gasUsed) * BigInt(gasPriceNum)
-      const gasCostUsdc = formatUsdc(gasCostRaw)
-
-      // Refresh balance
-      await fetchBalance(account)
-
-      return {
-        hash: txHash,
+    // Send as native transfer (value transfer, no data)
+    const txHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [{
         from: account,
-        to,
-        amount: parseFloat(amount),
-        gasCost: gasCostUsdc,
-        gasUsed,
-        settlementTime,
-        blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : null,
-        status: receipt?.status === '0x1' ? 'confirmed' : 'failed',
-        timestamp: new Date().toISOString(),
-        network: 'Arc Testnet',
-        chainId: ARC_TESTNET.id,
-      }
-    } catch (err) {
-      setError(err.message || 'Transaction failed')
-      throw err
-    } finally {
-      setIsLoading(false)
+        to: to,
+        value: amountHex,
+        gasPrice,
+        gas: '0x5208', // 21000 — standard native transfer gas
+      }],
+    })
+
+    // Poll for receipt
+    let receipt = null
+    let attempts = 0
+    while (!receipt && attempts < 30) {
+      await new Promise(r => setTimeout(r, 500))
+      const res = await fetch(ARC_TESTNET.rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_getTransactionReceipt',
+          params: [txHash],
+          id: 1,
+        }),
+      })
+      const data = await res.json()
+      if (data.result) receipt = data.result
+      attempts++
     }
-  }, [account, isCorrectNetwork, fetchBalance])
+
+    const settlementTime = Date.now() - startTime
+
+    // Calculate gas cost
+    const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 21000
+    const gasPriceNum = parseInt(gasPrice, 16)
+    const gasCostRaw = BigInt(gasUsed) * BigInt(gasPriceNum)
+    const gasCostUsdc = (Number(gasCostRaw) / 1_000_000).toFixed(6)
+
+    // Refresh balance
+    await fetchBalance(account)
+
+    return {
+      hash: txHash,
+      from: account,
+      to,
+      amount: parseFloat(amount),
+      gasCost: gasCostUsdc,
+      gasUsed,
+      settlementTime,
+      blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : null,
+      status: receipt?.status === '0x1' ? 'confirmed' : 'failed',
+      timestamp: new Date().toISOString(),
+      network: 'Arc Testnet',
+      chainId: ARC_TESTNET.id,
+    }
+  } catch (err) {
+    setError(err.message || 'Transaction failed')
+    throw err
+  } finally {
+    setIsLoading(false)
+  }
+}, [account, isCorrectNetwork, fetchBalance])
 
   // Refresh balance
   const refreshBalance = useCallback(() => {

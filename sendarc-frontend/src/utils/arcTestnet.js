@@ -6,7 +6,7 @@ export const ARC_TESTNET = {
   explorerUrl: 'https://testnet.arcscan.app',
   faucetUrl: 'https://faucet.circle.com',
   usdcAddress: '0x3600000000000000000000000000000000000000',
-  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
 }
 
 // Minimal ERC-20 ABI for USDC balance + transfer
@@ -27,7 +27,7 @@ export async function addArcTestnetToWallet() {
     params: [{
       chainId: '0x4CEF52', // 5042002 in hex
       chainName: 'Arc Testnet',
-      nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+      nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
       rpcUrls: ['https://rpc.testnet.arc.network'],
       blockExplorerUrls: ['https://testnet.arcscan.app'],
     }],
