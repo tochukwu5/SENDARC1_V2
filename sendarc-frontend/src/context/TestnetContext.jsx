@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 
-// Backend API base — update when backend is deployed
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const TestnetContext = createContext(null)
@@ -18,8 +17,8 @@ export function TestnetProvider({ children }) {
   })
   const [leaderboard, setLeaderboard] = useState([])
   const [isSyncing, setIsSyncing] = useState(false)
+  const [backendOnline, setBackendOnline] = useState(false)
 
-  // Save a new transaction (local + backend)
   const recordTransaction = useCallback(async (tx, walletAddress) => {
     const newTx = {
       ...tx,
@@ -28,10 +27,8 @@ export function TestnetProvider({ children }) {
       createdAt: new Date().toISOString(),
     }
 
-    // Add to local state immediately
     setTransactions(prev => [newTx, ...prev])
 
-    // Update local stats
     setStats(prev => {
       const allTxs = [newTx, ...transactions]
       const confirmed = allTxs.filter(t => t.status === 'confirmed')
@@ -53,22 +50,24 @@ export function TestnetProvider({ children }) {
       }
     })
 
-    // Sync to backend (non-blocking)
     try {
-      await fetch(`${API_BASE}/testnet/transactions`, {
+      const res = await fetch(`${API_BASE}/testnet/transactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newTx, walletAddress }),
       })
+      if (res.ok) {
+        setBackendOnline(true)
+        console.log('✅ Transaction saved to MongoDB')
+      }
     } catch {
-      // Backend offline — local state persists
+      setBackendOnline(false)
       console.warn('Backend sync failed — transaction saved locally')
     }
 
     return newTx
   }, [transactions])
 
-  // Load transactions from backend for a wallet
   const loadTransactions = useCallback(async (walletAddress) => {
     if (!walletAddress) return
     setIsSyncing(true)
@@ -77,16 +76,26 @@ export function TestnetProvider({ children }) {
       if (res.ok) {
         const data = await res.json()
         setTransactions(data.transactions || [])
-        setStats(data.stats || stats)
+        if (data.stats) {
+          setStats({
+            totalTransactions: data.stats.totalTransactions || 0,
+            totalVolume: data.stats.totalVolume || 0,
+            totalGasPaid: data.stats.totalGasPaid || 0,
+            avgSettlementTime: data.stats.avgSettlementTime || 0,
+            successRate: data.stats.successRate ?? 100,
+            uniqueRecipients: data.stats.uniqueRecipients || 0,
+            lastActivity: data.stats.lastActivity || null,
+          })
+        }
+        setBackendOnline(true)
       }
     } catch {
-      // Backend offline — use local state
+      setBackendOnline(false)
     } finally {
       setIsSyncing(false)
     }
   }, [])
 
-  // Load global leaderboard
   const loadLeaderboard = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/testnet/leaderboard`)
@@ -105,6 +114,7 @@ export function TestnetProvider({ children }) {
       stats,
       leaderboard,
       isSyncing,
+      backendOnline,
       recordTransaction,
       loadTransactions,
       loadLeaderboard,

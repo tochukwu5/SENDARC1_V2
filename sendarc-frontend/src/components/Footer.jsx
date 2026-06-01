@@ -58,7 +58,7 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="border-t border-[#1e2530] pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-[#556]">© 2026 SendArc. Built by David Emeremgini · Enugu, Nigeria 🇳🇬</p>
+          <p className="text-xs text-[#556]">© 2026 SendArc.</p>
           <div className="flex items-center gap-4">
             <span className="text-xs text-[#556]">$0.003 avg fee · &lt;1s settlement · 100% USDC backed</span>
           </div>

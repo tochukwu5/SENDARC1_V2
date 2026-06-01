@@ -294,13 +294,20 @@ export function AboutPage() {
     <>
       <Navbar />
       <div className="bg-[#0D1117] min-h-screen">
+
         {/* Hero */}
         <div className="max-w-6xl mx-auto px-6 pt-16 pb-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div>
             <Badge>OUR STORY</Badge>
-            <h1 className="text-4xl font-bold mt-5 mb-4 font-['Space_Grotesk']">Built by an African developer, <span className="gradient-text">for Africa</span></h1>
-            <p className="text-[#8892a0] leading-relaxed mb-4 text-sm">SendArc was born from a simple frustration — watching family members receive less money than was sent, eaten up by fees and delays from legacy remittance providers.</p>
-            <p className="text-[#8892a0] leading-relaxed text-sm">We built SendArc on Arc Network because it is the most direct and honest infrastructure for moving value across borders. Near-zero fees. Sub-second finality. USDC backed 1:1 by US dollars.</p>
+            <h1 className="text-4xl font-bold mt-5 mb-4 font-['Space_Grotesk']">
+              Designed by Developers, for <span className="gradient-text">for Real-World Needs</span>
+            </h1>
+            <p className="text-[#8892a0] leading-relaxed mb-4 text-sm">
+              SendArc was born from a simple frustration — watching family members receive less money than was sent, eaten up by fees and delays from legacy remittance providers.
+            </p>
+            <p className="text-[#8892a0] leading-relaxed text-sm">
+              We built SendArc on Arc Network because it is the most direct and honest infrastructure for moving value across borders. Near-zero fees. Sub-second finality. USDC backed 1:1 by US dollars.
+            </p>
           </div>
           <Card glow className="p-6">
             <p className="section-label mb-3">OUR MISSION</p>
@@ -314,8 +321,12 @@ export function AboutPage() {
         <div className="bg-[#0f1822] border-t border-b border-[#1e2530] py-14 px-6 mb-14">
           <div className="max-w-6xl mx-auto">
             <p className="section-label text-center mb-3">THE OPPORTUNITY</p>
-            <h2 className="text-2xl font-bold text-center mb-3 font-['Space_Grotesk']">Africa is the world's largest remittance market</h2>
-            <p className="text-center text-[#8892a0] text-sm max-w-xl mx-auto mb-10">And the most underserved. Sub-Saharan Africa pays the highest remittance fees in the world — an average of 8% per transaction.</p>
+            <h2 className="text-2xl font-bold text-center mb-3 font-['Space_Grotesk']">
+              Africa is the world's largest remittance market
+            </h2>
+            <p className="text-center text-[#8892a0] text-sm max-w-xl mx-auto mb-10">
+              And the most underserved. Sub-Saharan Africa pays the highest remittance fees in the world — an average of 8% per transaction.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {[
                 { num: '$54B', title: 'Sent to Sub-Saharan Africa annually', desc: 'Africa receives over $54 billion in remittances every year from the diaspora.' },
@@ -334,35 +345,96 @@ export function AboutPage() {
 
         {/* Team */}
         <div className="max-w-6xl mx-auto px-6 mb-14">
-          <p className="section-label mb-3">THE BUILDER</p>
+          <p className="section-label mb-3">THE BUILDERS</p>
           <h2 className="text-2xl font-bold mb-8 font-['Space_Grotesk']">Who's behind SendArc</h2>
-          <Card className="p-7 flex flex-col md:flex-row gap-6 items-start">
-            <div className="w-16 h-16 rounded-2xl bg-[#0a2030] border-2 border-[#00D4FF] flex items-center justify-center text-2xl font-bold text-[#00D4FF] font-['Space_Grotesk'] flex-shrink-0">DE</div>
-            <div>
-              <h3 className="text-xl font-bold font-['Space_Grotesk'] mb-1">David Emeremgini</h3>
-              <p className="text-sm text-[#00D4FF] mb-3">Founder & Fullstack Developer</p>
-              <p className="text-sm text-[#8892a0] leading-relaxed mb-4">David is a MERN stack developer based in Enugu, Nigeria, with over 4 years of experience building production-grade web applications. He studied Computer Statistics at the University of Nigeria, Nsukka, and currently works as a Fullstack Developer at Enzo Solution Network while building SendArc as an open contribution to Africa's financial infrastructure.</p>
-              <div className="flex gap-2 flex-wrap">
-                {['React.js', 'Node.js', 'MongoDB', 'Tailwind CSS', 'Web3', 'Enugu, Nigeria 🇳🇬'].map(t => (
-                  <span key={t} className="text-xs border border-[#1e2530] text-[#8892a0] px-3 py-1 rounded-full">{t}</span>
-                ))}
+
+          <div className="space-y-5">
+
+            {/* Julius — Founder */}
+            <Card className="p-7 flex flex-col md:flex-row gap-6 items-start">
+  <div className="w-16 h-16 rounded-2xl bg-[#0a2030] border-2 border-[#00D4FF] flex items-center justify-center text-2xl font-bold text-[#00D4FF] font-['Space_Grotesk'] flex-shrink-0">
+    EJ
+  </div>
+
+  <div className="flex-1">
+    <div className="flex flex-wrap items-center gap-3 mb-1">
+      <h3 className="text-xl font-bold font-['Space_Grotesk']">Eze Julius</h3>
+      <span className="text-xs text-[#556] font-mono">@6figuresdev33</span>
+    </div>
+
+    <p className="text-sm text-[#00D4FF] mb-3">
+      Founder of <span className="font-bold">@SENDARC</span> | Solidity Developer
+    </p>
+
+    <p className="text-sm text-[#8892a0] leading-relaxed mb-4">
+      Eze Julius is a Solidity and Web3 developer with over 6 years of experience building decentralized applications and blockchain-powered financial systems. He is the founder of @SENDARC, a stablecoin-powered cross-border payment and remittance platform built on Arc, designed to make global money transfers faster, cheaper, and more accessible using blockchain technology.
+    </p>
+
+    <div className="flex gap-2 flex-wrap">
+      {[
+        'Solidity',
+        'Ethereum',
+        'Smart Contracts',
+        'Web3',
+        'DeFi',
+        'Founder @SENDARC'
+      ].map(t => (
+        <span key={t} className="text-xs border border-[#1e2530] text-[#8892a0] px-3 py-1 rounded-full">
+          {t}
+        </span>
+      ))}
+    </div>
+  </div>
+</Card>
+
+            {/* David — Co-Founder */}
+            <Card className="p-7 flex flex-col md:flex-row gap-6 items-start">
+              <div className="w-16 h-16 rounded-2xl bg-[#0a2030] border-2 border-[#00D4FF] flex items-center justify-center text-2xl font-bold text-[#00D4FF] font-['Space_Grotesk'] flex-shrink-0">
+                DE
               </div>
-            </div>
-          </Card>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-3 mb-1">
+                  <h3 className="text-xl font-bold font-['Space_Grotesk']">David Emeremgini</h3>
+                  <span className="text-xs text-[#556] font-mono">@daviwork</span>
+                </div>
+                <p className="text-sm text-[#00D4FF] mb-3">
+                  Co-Founder of <span className="font-bold">@SENDARC</span> | Fullstack Developer
+                </p>
+                <p className="text-sm text-[#8892a0] leading-relaxed mb-4">
+                  David is a MERN stack developer with over 5 years of experience building production-grade web applications. He studied Computer Statistics at the University of Nigeria, Nsukka, and currently works as a Fullstack Developer at Enzo Solution Network while co-founding SendArc as an open contribution to borderless financial infrastructure.
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {['React.js', 'Node.js', 'MongoDB', 'Tailwind CSS', 'Web3', 'Enugu, Nigeria 🇳🇬'].map(t => (
+                    <span key={t} className="text-xs border border-[#1e2530] text-[#8892a0] px-3 py-1 rounded-full">{t}</span>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+          </div>
         </div>
 
         {/* Arc Banner */}
         <div className="max-w-6xl mx-auto px-6 mb-16">
           <div className="bg-[#0a2030] border-2 border-[#00D4FF] rounded-2xl p-8">
             <div className="flex items-center gap-4 mb-6">
-              <div className="bg-[#0D1117] border border-[#00D4FF] rounded-lg px-4 py-2 text-[#00D4FF] font-bold text-sm">Arc Network</div>
+              <div className="bg-[#0D1117] border border-[#00D4FF] rounded-lg px-4 py-2 text-[#00D4FF] font-bold text-sm">
+                Arc Network
+              </div>
               <div>
                 <p className="font-bold font-['Space_Grotesk']">Built on Arc — powered by Circle</p>
-                <p className="text-xs text-[#8892a0] mt-0.5">Stablecoin-native Layer-1 · Backed by Goldman Sachs, Mastercard &amp; Visa</p>
+                <p className="text-xs text-[#8892a0] mt-0.5">
+                  Stablecoin-native Layer-1 · Backed by Goldman Sachs, Mastercard &amp; Visa
+                </p>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-              {[{ v: '$0.003', l: 'AVG FEE PER TX' }, { v: '<1s', l: 'FINALITY' }, { v: '100%', l: 'USDC BACKED' }, { v: 'EVM', l: 'COMPATIBLE' }].map(s => (
+              {[
+                { v: '$0.003', l: 'AVG FEE PER TX' },
+                { v: '<1s', l: 'FINALITY' },
+                { v: '100%', l: 'USDC BACKED' },
+                { v: 'EVM', l: 'COMPATIBLE' },
+              ].map(s => (
                 <div key={s.l} className="text-center bg-[#0D1117] border border-[#1e2530] rounded-xl p-4">
                   <p className="text-2xl font-bold text-[#00D4FF] font-['Space_Grotesk']">{s.v}</p>
                   <p className="text-[10px] text-[#8892a0] tracking-widest mt-1">{s.l}</p>
@@ -376,6 +448,7 @@ export function AboutPage() {
             </div>
           </div>
         </div>
+
       </div>
       <Footer />
     </>

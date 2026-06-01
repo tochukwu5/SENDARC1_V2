@@ -5,6 +5,7 @@ import { ARC_TESTNET, shortAddr, arcScanAddr } from '../../utils/arcTestnet'
 import { Card } from '../../components/UI'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
+import { useEffect } from 'react'
 
 export default function TestnetHub() {
   const { account, balance, isConnected, isCorrectNetwork, connect, isLoading, error, hasMetaMask } = useArcTestnet()

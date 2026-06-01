@@ -11,7 +11,7 @@ const STEPS = ['Connect Wallet', 'Send Details', 'Confirm', 'Complete']
 export default function TestnetSend() {
   const navigate = useNavigate()
   const { account, balance, isConnected, isCorrectNetwork, connect, sendUsdc, isLoading, error, hasMetaMask, refreshBalance } = useArcTestnet()
-  const { recordTransaction } = useTestnet()
+  const { recordTransaction, loadTransactions } = useTestnet()
 
   const [step, setStep] = useState(isConnected && isCorrectNetwork ? 1 : 0)
   const [recipient, setRecipient] = useState('')
@@ -38,6 +38,8 @@ export default function TestnetSend() {
     try {
       const result = await sendUsdc({ to: recipient, amount })
       const recorded = await recordTransaction(result, account)
+      // Refresh stats from MongoDB immediately after recording
+      await loadTransactions(account)
       setTxResult({ ...result, id: recorded.id })
       setStep(3)
     } catch (err) {
@@ -147,7 +149,6 @@ export default function TestnetSend() {
             {/* Step 1 — Send Details */}
             {step === 1 && (
               <div className="space-y-4">
-                {/* Source */}
                 <Card className="p-5">
                   <p className="text-[10px] tracking-widest text-[#8892a0] mb-3">FROM (YOUR WALLET)</p>
                   <div className="bg-[#0D1117] border border-[#1e2530] rounded-lg p-3 mb-3">
@@ -158,7 +159,7 @@ export default function TestnetSend() {
                     </div>
                   </div>
 
-                  <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">AMOUNT (USDC)</p>
+                  <p className="text-[10px] tracking-widests text-[#8892a0] mb-2">AMOUNT (USDC)</p>
                   <div className="flex items-center gap-3 bg-[#0D1117] border border-[#1e2530] rounded-lg px-4 py-3 mb-2">
                     <input
                       type="number"
@@ -176,7 +177,6 @@ export default function TestnetSend() {
                   </div>
                 </Card>
 
-                {/* Recipient */}
                 <Card className="p-5">
                   <div className="flex justify-between items-center mb-3">
                     <p className="text-[10px] tracking-widest text-[#8892a0]">RECIPIENT ADDRESS</p>
@@ -318,9 +318,8 @@ export default function TestnetSend() {
                     className="flex-1 border border-[#00D4FF] text-[#00D4FF] py-2.5 rounded-xl text-sm font-['Space_Grotesk'] font-bold hover:bg-[#0a2030] transition-all text-center">
                     View on ArcScan ↗
                   </a>
-                  <button onClick={() => {
-                    navigator.clipboard.writeText(txResult.hash)
-                  }} className="flex-1 border border-[#1e2530] text-[#8892a0] py-2.5 rounded-xl text-sm hover:border-[#00D4FF] transition-all">
+                  <button onClick={() => navigator.clipboard.writeText(txResult.hash)}
+                    className="flex-1 border border-[#1e2530] text-[#8892a0] py-2.5 rounded-xl text-sm hover:border-[#00D4FF] transition-all">
                     📋 Copy TX Hash
                   </button>
                 </div>
