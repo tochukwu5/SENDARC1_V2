@@ -8,8 +8,19 @@ import Footer from '../../components/Footer'
 import { useEffect } from 'react'
 
 export default function TestnetHub() {
-  const { account, balance, isConnected, isCorrectNetwork, connect, isLoading, error, hasMetaMask } = useArcTestnet()
-  const { stats, transactions } = useTestnet()
+  const {
+    account, balance, isConnected, isCorrectNetwork,
+    connect, isLoading, error, hasMetaMask, refreshBalance
+  } = useArcTestnet()
+
+  const { stats, transactions, loadTransactions, isSyncing, backendOnline } = useTestnet()
+
+  // THIS IS THE KEY — load from MongoDB every time account is available
+  useEffect(() => {
+    if (account) {
+      loadTransactions(account)
+    }
+  }, [account])
 
   return (
     <>

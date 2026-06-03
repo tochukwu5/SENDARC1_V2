@@ -72,10 +72,10 @@ export default function Docs() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
             <div>
               <p className="text-[#8892a0] leading-relaxed mb-4 text-sm">
-                SendArc is a stablecoin-powered cross-border payment and remittance infrastructure designed to transform how money moves globally — built natively on Arc Network's stablecoin-native Layer-1 blockchain by Circle.
+                SendArc is a stablecoin-powered cross-border payment and remittance infrastructure designed to transform how money moves globally built natively on Arc Network's stablecoin-native Layer-1 blockchain by Circle.
               </p>
               <p className="text-[#8892a0] leading-relaxed text-sm">
-                SendArc enables instant, low-cost, transparent, and secure financial transactions powered by programmable stablecoin rails — with sub-second settlement and fees as low as $0.003 per transfer.
+                SendArc enables instant, low-cost, transparent, and secure financial transactions powered by programmable stablecoin rails  with sub-second settlement and fees as low as $0.003 per transfer.
               </p>
             </div>
             <Card glow className="p-6">
@@ -98,7 +98,7 @@ export default function Docs() {
             <SectionLabel>EXECUTIVE SUMMARY</SectionLabel>
             <h2 className="text-3xl font-bold font-['Space_Grotesk'] mb-4">What SendArc is building</h2>
             <p className="text-[#8892a0] text-sm max-w-2xl mb-10 leading-relaxed">
-              SendArc eliminates the inefficiencies of traditional remittance systems by leveraging Arc Network's purpose-built financial infrastructure — designed to support a broad range of financial activity across global markets.
+              SendArc eliminates the inefficiencies of traditional remittance systems by leveraging Arc Network's purpose-built financial infrastructure  designed to support a broad range of financial activity across global markets.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {[
@@ -127,7 +127,7 @@ export default function Docs() {
             <Card glow className="p-6">
               <SectionLabel>MISSION</SectionLabel>
               <p className="text-white font-['Space_Grotesk'] font-semibold text-sm leading-relaxed">
-                To provide instant, affordable, transparent, and secure cross-border financial services powered by blockchain infrastructure — accessible to anyone, anywhere.
+                To provide instant, affordable, transparent, and secure cross-border financial services powered by blockchain infrastructure accessible to anyone, anywhere.
               </p>
             </Card>
           </div>
@@ -229,7 +229,7 @@ export default function Docs() {
             <SectionLabel>ARCHITECTURE</SectionLabel>
             <h2 className="text-3xl font-bold font-['Space_Grotesk'] mb-4">System Architecture</h2>
             <p className="text-[#8892a0] text-sm max-w-2xl mb-10 leading-relaxed">
-              SendArc is designed as a modular, layered infrastructure stack — each layer purpose-built for performance, security, and scalability.
+              SendArc is designed as a modular, layered infrastructure stack each layer purpose-built for performance, security, and scalability.
             </p>
             <div className="space-y-4 mb-10">
               {[

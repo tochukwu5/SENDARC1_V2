@@ -476,7 +476,7 @@ export function DocsPage() {
                 SendArc <span className="gradient-text">Documentation</span>
               </h1>
               <p className="text-[#8892a0] leading-relaxed mb-2 text-sm">
-                Borderless Money Infrastructure — Built on Arc Network.
+                Borderless Money Infrastructure Built on Arc Network.
               </p>
               <p className="text-[#8892a0] leading-relaxed mb-6 text-sm">
                 This document covers the full architecture, use cases, security model, and roadmap of the SendArc protocol.
@@ -519,16 +519,16 @@ export function DocsPage() {
             <p className="section-label text-center mb-3">EXECUTIVE SUMMARY</p>
             <h2 className="text-2xl font-bold text-center mb-3 font-['Space_Grotesk']">What SendArc is building</h2>
             <p className="text-center text-[#8892a0] text-sm max-w-2xl mx-auto mb-10 leading-relaxed">
-              SendArc is a stablecoin-powered cross-border payment and remittance infrastructure designed to transform how money moves globally — built natively on Arc Network, leveraging programmable stablecoin rails for instant, low-cost, and transparent financial transactions.
+              SendArc is a stablecoin-powered cross-border payment and remittance infrastructure designed to transform how money moves globally built natively on Arc Network, leveraging programmable stablecoin rails for instant, low-cost, and transparent financial transactions.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
               {[
-                { icon: '⚡', title: 'Stablecoin-native settlement', desc: 'USDC transfers settled directly on-chain — instant, final, and publicly verifiable on ArcScan.' },
+                { icon: '⚡', title: 'Stablecoin-native settlement', desc: 'USDC transfers settled directly on-chain instant, final, and publicly verifiable on ArcScan.' },
                 { icon: '💰', title: 'Predictable $0.003 fee', desc: 'Fixed, USDC-denominated cost per transaction. Never volatile, never a surprise regardless of amount sent.' },
-                { icon: '🔗', title: 'Crosschain interoperability', desc: 'Send from Ethereum, Base, Arbitrum, or Solana — all routed through Circle CCTP and settled on Arc.' },
+                { icon: '🔗', title: 'Crosschain interoperability', desc: 'Send from Ethereum, Base, Arbitrum, or Solana all routed through Circle CCTP and settled on Arc.' },
                 { icon: '🌍', title: 'Real-time payments', desc: '8 live destinations with exchange rates refreshed every 60 seconds from live market data.' },
-                { icon: '⚙️', title: 'EVM-compatible', desc: 'Solidity smart contracts on Arc — proven, auditable infrastructure built for financial activity.' },
-                { icon: '📄', title: 'On-chain receipts', desc: 'Auto-generated receipts for every transfer — downloadable as PDF and shareable via WhatsApp.' },
+                { icon: '⚙️', title: 'EVM-compatible', desc: 'Solidity smart contracts on Arc  proven, auditable infrastructure built for financial activity.' },
+                { icon: '📄', title: 'On-chain receipts', desc: 'Auto-generated receipts for every transfer downloadable as PDF and shareable via WhatsApp.' },
               ].map(f => (
                 <Card key={f.title} className="p-5 flex gap-4 hover:border-[#00D4FF]/40 transition-all">
                   <div className="w-10 h-10 rounded-xl bg-[#0a2030] border border-[#00D4FF]/30 flex items-center justify-center flex-shrink-0 text-lg">
@@ -552,19 +552,19 @@ export function DocsPage() {
             <Card className="p-6">
               <p className="section-label mb-3">VISION</p>
               <p className="text-white font-['Space_Grotesk'] font-semibold text-sm leading-relaxed">
-                To become the leading stablecoin-powered financial infrastructure layer for borderless payments and programmable money movement — starting with the most underserved remittance corridors in the world.
+                To become the leading stablecoin-powered financial infrastructure layer for borderless payments and programmable money movement starting with the most underserved remittance corridors in the world.
               </p>
             </Card>
             <Card glow className="p-6">
               <p className="section-label mb-3">MISSION</p>
               <p className="text-white font-['Space_Grotesk'] font-semibold text-sm leading-relaxed">
-                To provide instant, affordable, transparent, and secure cross-border financial services powered by blockchain infrastructure — accessible to anyone with a crypto wallet.
+                To provide instant, affordable, transparent, and secure cross-border financial services powered by blockchain infrastructure accessible to anyone with a crypto wallet.
               </p>
             </Card>
           </div>
           <Card className="p-6">
             <p className="text-base leading-relaxed text-white italic border-l-2 border-[#00D4FF] pl-4">
-              "More money should reach the family, not the middleman. Building instant, borderless remittances with stablecoins — predictable fees, zero delays. The new way to send money home."
+              "More money should reach the family, not the middleman. Building instant, borderless remittances with stablecoins  predictable fees, zero delays. The new way to send money home."
             </p>
           </Card>
         </div>
@@ -579,10 +579,10 @@ export function DocsPage() {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-10">
               {[
-                { icon: '💸', title: 'High Fees', desc: 'Transfer fees erode remittance value, hitting recipients hardest. Average global fee sits at 6–8% per transaction — sending $100 via bank wire costs up to $25 in fees alone.' },
-                { icon: '⏳', title: 'Slow Settlement', desc: 'Settlements take 1–5 business days, creating uncertainty for families and businesses that need money now — not next week.' },
+                { icon: '💸', title: 'High Fees', desc: 'Transfer fees erode remittance value, hitting recipients hardest. Average global fee sits at 6–8% per transaction sending $100 via bank wire costs up to $25 in fees alone.' },
+                { icon: '⏳', title: 'Slow Settlement', desc: 'Settlements take 1–5 business days, creating uncertainty for families and businesses that need money now not next week.' },
                 { icon: '📉', title: 'Poor FX Rates', desc: 'Currency conversion markups add hidden costs on top of the stated fee. Recipients often receive far less than the sender intended.' },
-                { icon: '🚫', title: 'Limited Access', desc: 'Banking restrictions and infrastructure gaps exclude millions from the financial system entirely — no bank account means no transfer.' },
+                { icon: '🚫', title: 'Limited Access', desc: 'Banking restrictions and infrastructure gaps exclude millions from the financial system entirely no bank account means no transfer.' },
               ].map(p => (
                 <Card key={p.title} className="p-6">
                   <div className="text-2xl mb-3">{p.icon}</div>
@@ -618,16 +618,16 @@ export function DocsPage() {
           <p className="section-label mb-3">WHY ARC NETWORK</p>
           <h2 className="text-2xl font-bold mb-3 font-['Space_Grotesk']">Built on the right infrastructure</h2>
           <p className="text-[#8892a0] text-sm max-w-2xl mb-10 leading-relaxed">
-            SendArc is built on Arc because Arc is purpose-built for real-world financial activity — not speculation or generalized computation. Arc focuses entirely on stablecoin-native execution, making it the ideal foundation for a remittance product that real people depend on.
+            SendArc is built on Arc because Arc is purpose-built for real world financial activity not speculation or generalized computation. Arc focuses entirely on stablecoin-native execution, making it the ideal foundation for a remittance product that real people depend on.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
             {[
-              { icon: '💵', title: 'Stablecoin-Based Gas Fees', desc: 'Arc uses USDC as gas — eliminating volatile fees. For SendArc this means always $0.003, reliable remittance pricing, and easy financial forecasting.' },
-              { icon: '⚡', title: 'Deterministic Finality', desc: 'Transactions finalize in under 1 second on Arc. SendArc users send and receive instantly — no uncertainty, no counterparty risk, no waiting.' },
-              { icon: '🔗', title: 'EVM Compatibility', desc: 'Arc is fully EVM-compatible. SendArc deploys Solidity smart contracts and integrates Ethereum tooling — on a proven, auditable foundation.' },
+              { icon: '💵', title: 'Stablecoin-Based Gas Fees', desc: 'Arc uses USDC as gas eliminating volatile fees. For SendArc this means always $0.003, reliable remittance pricing, and easy financial forecasting.' },
+              { icon: '⚡', title: 'Deterministic Finality', desc: 'Transactions finalize in under 1 second on Arc. SendArc users send and receive instantly no uncertainty, no counterparty risk, no waiting.' },
+              { icon: '🔗', title: 'EVM Compatibility', desc: 'Arc is fully EVM-compatible. SendArc deploys Solidity smart contracts and integrates Ethereum tooling on a proven, auditable foundation.' },
                 { icon: '🌐', title: 'Crosschain via CCTP', desc: "Arc integrates with Circle's CCTP bridge, enabling SendArc to accept USDC from Ethereum, Base, Arbitrum, and Solana for settlement." },
-              { icon: '🏛️', title: 'Institutional Backing', desc: 'Backed by Goldman Sachs, Mastercard, and Visa — the same institutions behind global payments infrastructure SendArc is here to improve.' },
-              { icon: '✅', title: 'Compliance-Ready', desc: 'Arc provides enterprise-grade infrastructure enabling regulated payment flows, transparent auditing, and institutional-grade financial tooling.' },
+              { icon: '🏛️', title: 'Institutional Backing', desc: 'Backed by Goldman Sachs, Mastercard, and Visa the same institutions behind global payments infrastructure SendArc is here to improve.' },
+              { icon: '✅', title: 'Compliance-Ready', desc: 'Arc provides enterprise grade infrastructure enabling regulated payment flows, transparent auditing, and institutional-grade financial tooling.' },
             ].map(f => (
               <Card key={f.title} className="p-5">
                 <div className="text-2xl mb-3">{f.icon}</div>

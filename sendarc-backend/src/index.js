@@ -18,17 +18,32 @@ app.use(helmet())
 app.use(morgan('dev'))
 app.use(express.json({ limit: '10kb' }))
 
-// CORS — allow frontend
+// CORS — allow all frontend origins including localhost for development
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'https://sendarc1.vercel.app',
+  'https://sendarc1-production.up.railway.app',
+  process.env.FRONTEND_URL,
+].filter(Boolean)
+
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://sendarc1.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, curl)
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+    return callback(new Error('Not allowed by CORS'))
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }))
+
+// Handle preflight requests for all routes
+app.options('*', cors())
 
 // Rate limiting — 100 requests per 15 min per IP
 app.use('/api', rateLimit({
@@ -76,7 +91,7 @@ app.get('/', (req, res) => {
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({ error: `Route ${req.originalUrl} not found` })
+  res.status(404).json({ error: 'Route ' + req.originalUrl + ' not found' })
 })
 
 // Global error handler
