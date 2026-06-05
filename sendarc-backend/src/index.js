@@ -24,6 +24,8 @@ const allowedOrigins = [
   'http://localhost:5174',
   'http://localhost:3000',
   'https://sendarc1.vercel.app',
+  'https://sendarc.xyz',
+  'https://www.sendarc.xyz',
   'https://sendarc1-production.up.railway.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean)
