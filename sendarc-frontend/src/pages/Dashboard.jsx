@@ -169,7 +169,8 @@ export default function Dashboard() {
             },
             {
               label: 'GAS PAID',
-              value: `${testnetStats.totalGasPaid.toFixed(6)} USDC`,
+              value: `${testnetStats.totalGasPaid.toFixed(9)} ARC`,
+              // Gas is paid in native Arc token, not USDC
               sub: 'Arc Network fees',
               subColor: 'text-[#8892a0]',
             },
@@ -285,7 +286,7 @@ export default function Dashboard() {
                         )}
                       </td>
                       <td className="px-5 py-4 font-semibold text-white">{tx.amount} USDC</td>
-                      <td className="px-5 py-4 text-green-400 text-xs">{tx.gasCost} USDC</td>
+                      <td className="px-5 py-4 text-green-400 text-xs">{parseFloat(tx.gasCost || 0).toFixed(9)} ARC</td>
                       <td className="px-5 py-4 text-[#00D4FF] text-xs">
                         {tx.settlementTime ? `${(tx.settlementTime / 1000).toFixed(2)}s` : '—'}
                       </td>

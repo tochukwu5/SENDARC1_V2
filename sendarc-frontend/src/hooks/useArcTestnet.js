@@ -32,7 +32,8 @@ export function useArcTestnet() {
       const json = await response.json()
       if (json.result && json.result !== '0x0' && json.result !== '0x') {
         const raw = BigInt(json.result)
-        const formatted = (Number(raw) / 1_000_000).toFixed(6)
+        // Arc Testnet uses 18 decimals (like ETH), not 6 (like USDC on mainnet)
+        const formatted = (Number(raw) / 1e18).toFixed(6)
         setBalance(formatted)
       } else {
         setBalance('0.000000')
@@ -175,7 +176,8 @@ export function useArcTestnet() {
     try {
       const startTime = Date.now()
 
-      const rawAmount = BigInt(Math.round(parseFloat(amount) * 1_000_000))
+      // Arc Testnet: 18 decimals
+      const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6)) * BigInt(1e12)
       const amountHex = '0x' + rawAmount.toString(16)
 
       const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
@@ -215,8 +217,9 @@ export function useArcTestnet() {
 
       const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 21000
       const gasPriceNum = parseInt(gasPrice, 16)
+      // Gas cost in native Arc token (18 decimals)
       const gasCostRaw = BigInt(gasUsed) * BigInt(gasPriceNum)
-      const gasCostUsdc = (Number(gasCostRaw) / 1_000_000).toFixed(6)
+      const gasCostUsdc = (Number(gasCostRaw) / 1e18).toFixed(9)
 
       await fetchBalance(account)
 

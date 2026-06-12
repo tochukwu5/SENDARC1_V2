@@ -41,86 +41,77 @@ export default function SendMoney() {
     }
   }
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = () => {
     setPdfLoading(true)
-    try {
-      const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm')
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-      const date = new Date().toLocaleString()
-      const shortHash = MOCK_TX_HASH.slice(0, 20) + '...' + MOCK_TX_HASH.slice(-10)
-
-      doc.setFillColor(13, 17, 23)
-      doc.rect(0, 0, 210, 297, 'F')
-
-      doc.setTextColor(0, 212, 255)
-      doc.setFontSize(22)
-      doc.setFont('helvetica', 'bold')
-      doc.text('SendArc', 20, 25)
-
-      doc.setTextColor(136, 146, 160)
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Transaction Receipt', 20, 33)
-      doc.text('Powered by Arc Network', 20, 39)
-
-      doc.setDrawColor(30, 37, 48)
-      doc.line(20, 44, 190, 44)
-
-      doc.setFillColor(0, 47, 23)
-      doc.roundedRect(20, 50, 50, 10, 3, 3, 'F')
-      doc.setTextColor(34, 197, 94)
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.text('CONFIRMED - FINAL', 23, 57)
-
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(32)
-      doc.setFont('helvetica', 'bold')
-      doc.text(amount + ' USDC', 20, 80)
-
-      doc.setTextColor(0, 212, 255)
-      doc.setFontSize(14)
-      doc.text(selectedCountry.symbol + received + ' ' + selectedCountry.currency + ' received', 20, 90)
-
-      doc.setFontSize(10)
-      const rows = [
-        ['You Sent', amount + ' USDC'],
-        ['They Received', selectedCountry.symbol + received + ' ' + selectedCountry.currency],
-        ['Exchange Rate', '1 USDC = ' + selectedCountry.symbol + selectedCountry.rate],
-        ['Arc Network Fee', '$0.003 USDC'],
-        ['Settlement Time', '< 1 second'],
-        ['Network', 'Arc Testnet (Chain 5042002)'],
-        ['Recipient', recipientAddress || '0x0000...0000'],
-        ['TX Hash', shortHash],
-        ['Date', date],
-      ]
-
-      let y = 105
-      rows.forEach(([label, value]) => {
-        doc.setTextColor(136, 146, 160)
-        doc.setFont('helvetica', 'normal')
-        doc.text(label, 20, y)
-        doc.setTextColor(255, 255, 255)
-        doc.setFont('helvetica', 'bold')
-        doc.text(value, 110, y)
-        doc.setDrawColor(30, 37, 48)
-        doc.line(20, y + 3, 190, y + 3)
-        y += 12
-      })
-
-      doc.setTextColor(85, 85, 102)
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'normal')
-      doc.text('This is a testnet receipt for demonstration purposes.', 20, 260)
-      doc.text('sendarc.xyz · Arc Network · Circle USDC', 20, 265)
-
-      doc.save('SendArc-Receipt-' + Date.now() + '.pdf')
-    } catch (err) {
-      console.error('PDF error:', err)
-      alert('PDF generation failed. Please try again.')
-    } finally {
+    const date = new Date().toLocaleString()
+    const html = `
+      <html>
+        <head>
+          <title>SendArc Receipt</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fff; color: #111; padding: 48px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #e5e7eb; padding-bottom: 24px; }
+            .brand { font-size: 28px; font-weight: 900; color: #0ea5e9; letter-spacing: -0.5px; }
+            .brand span { color: #111; }
+            .meta { text-align: right; font-size: 12px; color: #6b7280; line-height: 1.6; }
+            .badge { display: inline-block; background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 99px; border: 1px solid #86efac; margin-bottom: 24px; }
+            .amount-block { margin-bottom: 32px; }
+            .amount-big { font-size: 48px; font-weight: 900; color: #111; line-height: 1; }
+            .amount-sub { font-size: 18px; color: #0ea5e9; font-weight: 600; margin-top: 6px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            tr { border-bottom: 1px solid #f3f4f6; }
+            td { padding: 12px 4px; font-size: 13px; }
+            td:first-child { color: #6b7280; width: 40%; }
+            td:last-child { color: #111; font-weight: 600; text-align: right; word-break: break-all; }
+            .hash { font-family: monospace; font-size: 11px; color: #6b7280; }
+            .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
+            @media print {
+              body { padding: 32px; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="brand">Send<span>Arc</span></div>
+              <div style="font-size:12px;color:#6b7280;margin-top:4px;">Transaction Receipt</div>
+            </div>
+            <div class="meta">
+              <div>Arc Network · Chain 5042002</div>
+              <div>${date}</div>
+              <div>sendarc.xyz</div>
+            </div>
+          </div>
+          <div class="badge">✓ CONFIRMED · FINAL</div>
+          <div class="amount-block">
+            <div class="amount-big">${amount} USDC</div>
+            <div class="amount-sub">${selectedCountry.symbol}${received} ${selectedCountry.currency} received</div>
+          </div>
+          <table>
+            <tr><td>You Sent</td><td>${amount} USDC</td></tr>
+            <tr><td>They Received</td><td>${selectedCountry.symbol}${received} ${selectedCountry.currency}</td></tr>
+            <tr><td>Exchange Rate</td><td>1 USDC = ${selectedCountry.symbol}${selectedCountry.rate}</td></tr>
+            <tr><td>Arc Network Fee</td><td>$0.003 USDC</td></tr>
+            <tr><td>Settlement Time</td><td>&lt; 1 second</td></tr>
+            <tr><td>Network</td><td>Arc Testnet (Chain 5042002)</td></tr>
+            <tr><td>Recipient</td><td class="hash">${recipientAddress || '0x0000...0000'}</td></tr>
+            <tr><td>TX Hash</td><td class="hash">${MOCK_TX_HASH}</td></tr>
+            <tr><td>Date</td><td>${date}</td></tr>
+          </table>
+          <div class="footer">This is a testnet receipt · SendArc · Powered by Arc Network · Circle USDC</div>
+        </body>
+      </html>
+    `
+    const win = window.open('', '_blank', 'width=800,height=900')
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => {
+      win.print()
       setPdfLoading(false)
-    }
+    }, 400)
   }
 
   const handleShareWhatsApp = () => {
