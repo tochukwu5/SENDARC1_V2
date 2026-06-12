@@ -4,6 +4,68 @@ import WalletStats from '../models/WalletStats.js'
 
 const router = express.Router()
 
+
+// ─── POST /api/testnet/admin/fix-gas ─────────────────────────────────
+// One-time migration: fixes gas values stored with wrong decimal (6 instead of 18)
+// Old gasCost was: (gasUsed * gasPrice) / 1e6  — wrong
+// Correct gasCost is: (gasUsed * gasPrice) / 1e18
+// Ratio to fix: divide old value by 1e12
+router.post('/admin/fix-gas', async (req, res) => {
+  try {
+    // Find all transactions where gasCost looks wrong (over $1 is definitely wrong)
+    const badTxs = await Transaction.find({
+      $expr: { $gt: [{ $toDouble: '$gasCost' }, 1] }
+    })
+
+    let fixed = 0
+    for (const tx of badTxs) {
+      const oldGas = parseFloat(tx.gasCost)
+      const correctedGas = (oldGas / 1e12).toFixed(9)
+      await Transaction.updateOne({ _id: tx._id }, { $set: { gasCost: correctedGas } })
+      fixed++
+    }
+
+    // Recompute all WalletStats totalGasPaid from scratch
+    const wallets = await WalletStats.find({})
+    for (const w of wallets) {
+      const agg = await Transaction.aggregate([
+        { $match: { walletAddress: w.walletAddress } },
+        { $group: {
+          _id: null,
+          totalGasPaid: { $sum: { $toDouble: '$gasCost' } },
+          avgSettlement: { $avg: '$settlementTime' },
+          minSettlement: { $min: '$settlementTime' },
+          confirmedTransactions: { $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] } },
+          totalTransactions: { $sum: 1 },
+          totalVolume: { $sum: '$amount' },
+        }}
+      ])
+      if (agg[0]) {
+        await WalletStats.updateOne({ _id: w._id }, {
+          $set: {
+            totalGasPaid: agg[0].totalGasPaid || 0,
+            avgSettlementTime: agg[0].avgSettlement || 0,
+            fastestSettlement: agg[0].minSettlement || null,
+            confirmedTransactions: agg[0].confirmedTransactions || 0,
+            totalTransactions: agg[0].totalTransactions || 0,
+            totalVolume: agg[0].totalVolume || 0,
+          }
+        })
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Gas values corrected and wallet stats recomputed',
+      transactionsFixed: fixed,
+      walletsUpdated: wallets.length,
+    })
+  } catch (err) {
+    console.error('Fix gas error:', err)
+    res.status(500).json({ error: 'Migration failed: ' + err.message })
+  }
+})
+
 // ─── POST /api/testnet/transactions ──────────────────────────────────
 // Record a new testnet transaction
 router.post('/transactions', async (req, res) => {

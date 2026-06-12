@@ -169,8 +169,15 @@ export default function Dashboard() {
             },
             {
               label: 'GAS PAID',
-              value: `${testnetStats.totalGasPaid.toFixed(9)} ARC`,
-              // Gas is paid in native Arc token, not USDC
+              value: (() => {
+                const g = testnetStats.totalGasPaid
+                // If value is clearly wrong (over $1 total gas is suspicious on Arc)
+                // divide by 1e12 to correct old bad data until DB migration runs
+                const corrected = g > 1 ? g / 1e12 : g
+                return corrected < 0.000001
+                  ? '~0 ARC'
+                  : corrected.toFixed(9) + ' ARC'
+              })(),
               sub: 'Arc Network fees',
               subColor: 'text-[#8892a0]',
             },
@@ -286,7 +293,13 @@ export default function Dashboard() {
                         )}
                       </td>
                       <td className="px-5 py-4 font-semibold text-white">{tx.amount} USDC</td>
-                      <td className="px-5 py-4 text-green-400 text-xs">{parseFloat(tx.gasCost || 0).toFixed(9)} ARC</td>
+                      <td className="px-5 py-4 text-green-400 text-xs">
+                        {(() => {
+                          const g = parseFloat(tx.gasCost || 0)
+                          const corrected = g > 1 ? g / 1e12 : g
+                          return corrected < 0.000000001 ? '~0 ARC' : corrected.toFixed(9) + ' ARC'
+                        })()}
+                      </td>
                       <td className="px-5 py-4 text-[#00D4FF] text-xs">
                         {tx.settlementTime ? `${(tx.settlementTime / 1000).toFixed(2)}s` : '—'}
                       </td>
