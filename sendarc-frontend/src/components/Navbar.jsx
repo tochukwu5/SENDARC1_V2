@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
+import { useArcTestnet } from '../hooks/useArcTestnet'
 
 export default function Navbar() {
   const { wallet, disconnect } = useWallet()
@@ -16,6 +17,7 @@ export default function Navbar() {
   ]
 
   const isTestnet = pathname.startsWith('/testnet')
+  const { disconnect: arcDisconnect } = useArcTestnet()
 
   return (
     <nav className="sticky top-0 z-50 border-b border-[#1e2530] bg-[#0D1117]/95 backdrop-blur-md">
@@ -64,7 +66,11 @@ export default function Navbar() {
                   <span className="text-xs text-[#00D4FF] font-semibold">{wallet.balance} USDC</span>
                 </div>
               </Link>
-              <button onClick={disconnect} className="text-xs text-[#8892a0] hover:text-red-400 transition-colors">
+              <button onClick={() => {
+                  arcDisconnect()
+                  disconnect() // from useWallet
+               navigate('/')
+              }} className="text-xs text-[#8892a0] hover:text-red-400 transition-colors">
                 Disconnect
               </button>
             </div>

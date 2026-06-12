@@ -1,30 +1,54 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useArcTestnet } from '../hooks/useArcTestnet'
 
 const WalletContext = createContext(null)
 
+// This provider wraps useArcTestnet and exposes a unified wallet object
+// so the rest of the app (Dashboard, Sidebar, etc) can just do useWallet()
 export function WalletProvider({ children }) {
-  const [wallet, setWallet] = useState(null)
-  // wallet shape: { address, shortAddress, balance, network }
+  const {
+    account,
+    balance,
+    isConnected,
+    isAutoConnecting,
+    connect: arcConnect,
+    disconnect: arcDisconnect,
+  } = useArcTestnet()
 
-  // These functions are stubs — will be replaced with real wagmi/viem calls
-  // when the backend/web3 layer is connected
-  const connect = async (providerType) => {
-    // TODO: replace with real wallet connection (wagmi connectAsync)
-    const mockAddress = '0x3f4a8b2c1d9e5f6a7b8c9d0e1f2a3b4c8c2d'
-    setWallet({
-      address: mockAddress,
-      shortAddress: `${mockAddress.slice(0, 6)}...${mockAddress.slice(-4)}`,
-      balance: '1,240.00',
-      network: 'Arc Testnet',
-      provider: providerType,
-    })
-    return true
-  }
+  // Build the wallet object that the rest of the app expects
+  const wallet = isConnected && account
+    ? {
+        address: account,
+        shortAddress: account.slice(0, 6) + '...' + account.slice(-4),
+        balance: parseFloat(balance).toFixed(2),
+        network: 'Arc Testnet',
+        provider: 'metamask',
+      }
+    : null
 
-  const disconnect = () => setWallet(null)
+  const connect = useCallback(async (providerType) => {
+    // Only MetaMask is supported right now
+    // WalletConnect and Coinbase coming soon
+    if (providerType !== 'metamask') {
+      throw new Error('Only MetaMask is supported right now. WalletConnect and Coinbase coming soon.')
+    }
+    const result = await arcConnect()
+    if (!result) throw new Error('MetaMask connection failed or was rejected.')
+    return result
+  }, [arcConnect])
+
+  const disconnect = useCallback(async () => {
+    await arcDisconnect()
+  }, [arcDisconnect])
 
   return (
-    <WalletContext.Provider value={{ wallet, connect, disconnect, isConnected: !!wallet }}>
+    <WalletContext.Provider value={{
+      wallet,
+      connect,
+      disconnect,
+      isConnected,
+      isAutoConnecting,
+    }}>
       {children}
     </WalletContext.Provider>
   )

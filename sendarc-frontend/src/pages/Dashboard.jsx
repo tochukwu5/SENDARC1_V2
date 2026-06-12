@@ -6,6 +6,9 @@ import { MOCK_TRANSACTIONS } from '../data/constants'
 import { Card, StatusBadge } from '../components/UI'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useTestnet } from '../context/TestnetContext'
+import { useArcTestnet } from '../hooks/useArcTestnet'
+
+
 
 const CHART_DATA = [
   { month: 'Dec', usdc: 120 }, { month: 'Jan', usdc: 340 }, { month: 'Feb', usdc: 280 },
@@ -27,6 +30,7 @@ const ACCOUNT_ITEMS = [
 
 function Sidebar({ active }) {
   const { wallet, disconnect } = useWallet()
+  const { disconnect: arcDisconnect } = useArcTestnet()
   const navigate = useNavigate()
   return (
     <aside className="w-60 flex-shrink-0 bg-[#0D1117] border-r border-[#1e2530] min-h-screen flex flex-col">
@@ -75,7 +79,12 @@ function Sidebar({ active }) {
               <span className="live-dot inline-block mr-1.5" />{wallet.balance} USDC
             </p>
             <button
-              onClick={() => { disconnect(); navigate('/') }}
+              // On the button
+              onClick={() => {
+            arcDisconnect()
+            disconnect() // from useWallet
+            navigate('/')
+            }}
               className="text-[10px] text-red-400 hover:underline mt-2 block"
             >
               Disconnect

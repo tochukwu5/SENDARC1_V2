@@ -18,9 +18,9 @@ app.use(helmet())
 app.use(morgan('dev'))
 app.use(express.json({ limit: '10kb' }))
 
-// CORS — allow all frontend origins including localhost for development
-const allowedOrigins = [
-  'http://localhost:5173',
+// CORS — allow production + localhost for local dev always
+const PRODUCTION_ORIGINS = [
+   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
   'https://sendarc1.vercel.app',
@@ -32,19 +32,26 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, curl)
+    // Allow requests with no origin (Postman, curl, mobile)
     if (!origin) return callback(null, true)
-    if (allowedOrigins.includes(origin)) {
+
+    // Always allow localhost on any port for local development
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
       return callback(null, true)
     }
-    return callback(new Error('Not allowed by CORS'))
+
+    if (PRODUCTION_ORIGINS.includes(origin)) {
+      return callback(null, true)
+    }
+
+    return callback(new Error('Not allowed by CORS: ' + origin))
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }))
 
-// Handle preflight requests for all routes
+// Handle preflight for all routes
 app.options('*', cors())
 
 // Rate limiting — 100 requests per 15 min per IP
@@ -76,6 +83,7 @@ app.get('/', (req, res) => {
     description: 'Node.js + MongoDB API for SendArc testnet transaction recording',
     endpoints: {
       health: 'GET /health',
+      registerWallet: 'POST /api/testnet/wallet/register',
       recordTransaction: 'POST /api/testnet/transactions',
       getTransactions: 'GET /api/testnet/transactions/:walletAddress',
       getStats: 'GET /api/testnet/stats/:walletAddress',
@@ -86,7 +94,6 @@ app.get('/', (req, res) => {
       chainId: 5042002,
       rpc: 'https://rpc.testnet.arc.network',
       explorer: 'https://testnet.arcscan.app',
-      usdcContract: '0x3600000000000000000000000000000000000000',
     }
   })
 })

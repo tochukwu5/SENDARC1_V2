@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ARC_TESTNET, switchToArcTestnet } from '../utils/arcTestnet'
 
+const DISCONNECTED_KEY = 'sendarc_disconnected'
+
 export function useArcTestnet() {
   const [account, setAccount] = useState(null)
   const [balance, setBalance] = useState('0.000000')
@@ -52,19 +54,39 @@ export function useArcTestnet() {
     await fetchBalance(address)
   }, [fetchBalance])
 
-  // AUTO-RECONNECT on page load — this is the key fix
-  // Checks if MetaMask is already connected and restores the session silently
+  // Clear all wallet state
+  const clearWalletState = useCallback(() => {
+    setAccount(null)
+    setIsConnected(false)
+    setIsCorrectNetwork(false)
+    setBalance('0.000000')
+    setNetwork(null)
+    setError(null)
+  }, [])
+
+  // AUTO-RECONNECT on page load
+  // Only runs if user did NOT explicitly disconnect in this session
   useEffect(() => {
     const autoReconnect = async () => {
       if (!window.ethereum) {
         setIsAutoConnecting(false)
         return
       }
+
+      // If user explicitly disconnected, do not auto-reconnect
+      // They must click Connect again manually
+      const userDisconnected = sessionStorage.getItem(DISCONNECTED_KEY)
+      if (userDisconnected === 'true') {
+        console.log('User previously disconnected — skipping auto-reconnect')
+        setIsAutoConnecting(false)
+        return
+      }
+
       try {
-        // eth_accounts does NOT prompt the user — it just checks if already connected
+        // eth_accounts does NOT prompt the user
+        // It only returns accounts if the site already has permission
         const accounts = await window.ethereum.request({ method: 'eth_accounts' })
         if (accounts && accounts.length > 0) {
-          // Wallet was already connected — restore session silently
           await setWalletState(accounts[0])
         }
       } catch (err) {
@@ -76,7 +98,7 @@ export function useArcTestnet() {
     autoReconnect()
   }, [setWalletState])
 
-  // Manual connect — called when user clicks Connect MetaMask button
+  // Manual connect — always prompts MetaMask for authorization
   const connect = useCallback(async () => {
     if (!hasMetaMask) {
       setError('MetaMask not found. Please install MetaMask to use the testnet.')
@@ -85,22 +107,64 @@ export function useArcTestnet() {
     setIsLoading(true)
     setError(null)
     try {
-      // eth_requestAccounts WILL prompt the user if not connected
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-      if (!accounts.length) throw new Error('No accounts found')
+      // First revoke any existing permissions so MetaMask
+      // always shows the account selection popup
+      try {
+        await window.ethereum.request({
+          method: 'wallet_revokePermissions',
+          params: [{ eth_accounts: {} }],
+        })
+      } catch {
+        // wallet_revokePermissions may not be supported on older MetaMask
+        // That is fine — we continue and request accounts anyway
+      }
+
+      // eth_requestAccounts always prompts the user to select and approve
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      })
+      if (!accounts.length) throw new Error('No accounts selected')
 
       // Switch to Arc Testnet
       await switchToArcTestnet()
 
+      // Clear disconnected flag — user has now explicitly connected
+      sessionStorage.removeItem(DISCONNECTED_KEY)
+
       await setWalletState(accounts[0])
       return accounts[0]
     } catch (err) {
-      setError(err.message || 'Failed to connect wallet')
+      // User rejected the connection prompt
+      if (err.code === 4001) {
+        setError('Connection rejected. Please approve the MetaMask prompt to continue.')
+      } else {
+        setError(err.message || 'Failed to connect wallet')
+      }
       return false
     } finally {
       setIsLoading(false)
     }
   }, [hasMetaMask, setWalletState])
+
+  // Disconnect — revokes MetaMask permissions and sets session flag
+  const disconnect = useCallback(async () => {
+    try {
+      // Revoke MetaMask site permissions so it won't auto-connect next visit
+      if (window.ethereum) {
+        await window.ethereum.request({
+          method: 'wallet_revokePermissions',
+          params: [{ eth_accounts: {} }],
+        })
+      }
+    } catch (err) {
+      console.warn('wallet_revokePermissions failed:', err.message)
+      // Continue with disconnect even if revoke fails
+    } finally {
+      // Set session flag — prevents auto-reconnect until user manually connects
+      sessionStorage.setItem(DISCONNECTED_KEY, 'true')
+      clearWalletState()
+    }
+  }, [clearWalletState])
 
   // Send USDC on Arc Testnet as native transfer
   const sendUsdc = useCallback(async ({ to, amount }) => {
@@ -188,13 +252,13 @@ export function useArcTestnet() {
 
     const onAccountsChanged = async (accounts) => {
       if (accounts.length) {
-        await setWalletState(accounts[0])
+        // Only auto-update if user did not explicitly disconnect
+        const userDisconnected = sessionStorage.getItem(DISCONNECTED_KEY)
+        if (userDisconnected !== 'true') {
+          await setWalletState(accounts[0])
+        }
       } else {
-        setAccount(null)
-        setIsConnected(false)
-        setIsCorrectNetwork(false)
-        setBalance('0.000000')
-        setNetwork(null)
+        clearWalletState()
       }
     }
 
@@ -202,7 +266,6 @@ export function useArcTestnet() {
       const chainId = parseInt(chainIdHex, 16)
       setNetwork(chainId)
       setIsCorrectNetwork(chainId === ARC_TESTNET.id)
-      // Refresh balance on chain change
       if (account) fetchBalance(account)
     }
 
@@ -213,7 +276,7 @@ export function useArcTestnet() {
       window.ethereum.removeListener('accountsChanged', onAccountsChanged)
       window.ethereum.removeListener('chainChanged', onChainChanged)
     }
-  }, [account, fetchBalance, setWalletState])
+  }, [account, fetchBalance, setWalletState, clearWalletState])
 
   return {
     account,
@@ -226,6 +289,7 @@ export function useArcTestnet() {
     error,
     hasMetaMask,
     connect,
+    disconnect,
     sendUsdc,
     refreshBalance,
     arcTestnet: ARC_TESTNET,
