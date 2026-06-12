@@ -19,6 +19,122 @@ export default function SendMoney() {
   const received = (amount * selectedCountry.rate).toLocaleString()
   const liveCountries = COUNTRIES.filter(c => c.status === 'live')
 
+  // Fake TX hash for the send page (real hash comes from useArcTestnet on testnet)
+  const MOCK_TX_HASH = '0x7d4f2a8b3c91e5f6a0d2b4c8e1f3a5b7c9d2e4f6a8b0c2d9e3f5a7b1c4d6e8f'
+  const [copied, setCopied] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+
+  const handleCopyTxId = async () => {
+    try {
+      await navigator.clipboard.writeText(MOCK_TX_HASH)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      const el = document.createElement('textarea')
+      el.value = MOCK_TX_HASH
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    setPdfLoading(true)
+    try {
+      const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm')
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+      const date = new Date().toLocaleString()
+      const shortHash = MOCK_TX_HASH.slice(0, 20) + '...' + MOCK_TX_HASH.slice(-10)
+
+      doc.setFillColor(13, 17, 23)
+      doc.rect(0, 0, 210, 297, 'F')
+
+      doc.setTextColor(0, 212, 255)
+      doc.setFontSize(22)
+      doc.setFont('helvetica', 'bold')
+      doc.text('SendArc', 20, 25)
+
+      doc.setTextColor(136, 146, 160)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Transaction Receipt', 20, 33)
+      doc.text('Powered by Arc Network', 20, 39)
+
+      doc.setDrawColor(30, 37, 48)
+      doc.line(20, 44, 190, 44)
+
+      doc.setFillColor(0, 47, 23)
+      doc.roundedRect(20, 50, 50, 10, 3, 3, 'F')
+      doc.setTextColor(34, 197, 94)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('CONFIRMED - FINAL', 23, 57)
+
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(32)
+      doc.setFont('helvetica', 'bold')
+      doc.text(amount + ' USDC', 20, 80)
+
+      doc.setTextColor(0, 212, 255)
+      doc.setFontSize(14)
+      doc.text(selectedCountry.symbol + received + ' ' + selectedCountry.currency + ' received', 20, 90)
+
+      doc.setFontSize(10)
+      const rows = [
+        ['You Sent', amount + ' USDC'],
+        ['They Received', selectedCountry.symbol + received + ' ' + selectedCountry.currency],
+        ['Exchange Rate', '1 USDC = ' + selectedCountry.symbol + selectedCountry.rate],
+        ['Arc Network Fee', '$0.003 USDC'],
+        ['Settlement Time', '< 1 second'],
+        ['Network', 'Arc Testnet (Chain 5042002)'],
+        ['Recipient', recipientAddress || '0x0000...0000'],
+        ['TX Hash', shortHash],
+        ['Date', date],
+      ]
+
+      let y = 105
+      rows.forEach(([label, value]) => {
+        doc.setTextColor(136, 146, 160)
+        doc.setFont('helvetica', 'normal')
+        doc.text(label, 20, y)
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bold')
+        doc.text(value, 110, y)
+        doc.setDrawColor(30, 37, 48)
+        doc.line(20, y + 3, 190, y + 3)
+        y += 12
+      })
+
+      doc.setTextColor(85, 85, 102)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text('This is a testnet receipt for demonstration purposes.', 20, 260)
+      doc.text('sendarc.xyz · Arc Network · Circle USDC', 20, 265)
+
+      doc.save('SendArc-Receipt-' + Date.now() + '.pdf')
+    } catch (err) {
+      console.error('PDF error:', err)
+      alert('PDF generation failed. Please try again.')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  const handleShareWhatsApp = () => {
+    const msg =
+      '*Money Sent via SendArc!*\n\n' +
+      'Sent: *' + amount + ' USDC*\n' +
+      'Received: *' + selectedCountry.symbol + received + ' ' + selectedCountry.currency + '*\n' +
+      'Fee: *$0.003 USDC*\n' +
+      'Settled in under 1 second\n\n' +
+      'TX: ' + MOCK_TX_HASH.slice(0, 20) + '...\n\n' +
+      'Powered by Arc Network - sendarc.xyz'
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener,noreferrer')
+  }
+
   const handleSend = async () => {
     setProcessing(true)
     await new Promise(r => setTimeout(r, 2000)) // simulate tx
@@ -244,14 +360,24 @@ export default function SendMoney() {
               </div>
 
               <div className="flex gap-3 mb-3">
-                <button className="flex-1 border border-[#00D4FF] text-[#00D4FF] py-3 rounded-xl text-sm font-['Space_Grotesk'] font-bold hover:bg-[#0a2030] transition-all">
-                  ↓ Download Receipt PDF
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={pdfLoading}
+                  className={"flex-1 border border-[#00D4FF] text-[#00D4FF] py-3 rounded-xl text-sm font-['Space_Grotesk'] font-bold hover:bg-[#0a2030] transition-all disabled:opacity-60"}
+                >
+                  {pdfLoading ? '⏳ Generating...' : '↓ Download Receipt PDF'}
                 </button>
-                <button className="flex-1 border border-[#1e2530] text-[#8892a0] py-3 rounded-xl text-sm hover:border-[#00D4FF] transition-all">
-                  📋 Copy TX ID
+                <button
+                  onClick={handleCopyTxId}
+                  className={"flex-1 border py-3 rounded-xl text-sm hover:border-[#00D4FF] transition-all " + (copied ? 'border-green-500 text-green-400' : 'border-[#1e2530] text-[#8892a0]')}
+                >
+                  {copied ? '✓ Copied!' : '📋 Copy TX ID'}
                 </button>
               </div>
-              <button className="w-full border border-[#1e2530] text-[#8892a0] py-3 rounded-xl text-sm hover:border-[#00D4FF] transition-all mb-4">
+              <button
+                onClick={handleShareWhatsApp}
+                className="w-full border border-[#25D366] text-[#25D366] py-3 rounded-xl text-sm hover:bg-[#25D366]/10 transition-all mb-4 font-semibold"
+              >
                 📱 Share Receipt via WhatsApp
               </button>
               <button onClick={() => { setStep(1); setRecipientAddress(''); }} className="text-sm text-[#00D4FF] hover:underline">

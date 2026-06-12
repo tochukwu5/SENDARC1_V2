@@ -165,7 +165,15 @@ export default function TestnetSend() {
                       type="number"
                       placeholder="0.00"
                       value={amount}
-                      onChange={e => setAmount(e.target.value)}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value)
+                        if (e.target.value === '' || e.target.value === '0') {
+                          setAmount('')
+                        } else if (!isNaN(val) && val > 0) {
+                          setAmount(e.target.value)
+                        }
+                      }}
+                      min="0"
                       max={parseFloat(balance)}
                       className="flex-1 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk']"
                     />
