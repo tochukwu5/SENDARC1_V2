@@ -169,15 +169,13 @@ export default function Dashboard() {
             },
             {
               label: 'GAS PAID',
-              value: (() => {
-                const g = testnetStats.totalGasPaid
-                // If value is clearly wrong (over $1 total gas is suspicious on Arc)
-                // divide by 1e12 to correct old bad data until DB migration runs
-                const corrected = g > 1 ? g / 1e12 : g
-                return corrected < 0.000001
+              value: (testnetStats.totalGasPaid > 1
+                ? testnetStats.totalGasPaid / 1e12
+                : testnetStats.totalGasPaid) < 0.000001
                   ? '~0 ARC'
-                  : corrected.toFixed(9) + ' ARC'
-              })(),
+                  : ((testnetStats.totalGasPaid > 1
+                      ? testnetStats.totalGasPaid / 1e12
+                      : testnetStats.totalGasPaid).toFixed(9) + ' ARC'),
               sub: 'Arc Network fees',
               subColor: 'text-[#8892a0]',
             },
