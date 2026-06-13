@@ -164,7 +164,7 @@ export default function Dashboard() {
             {
               label: 'TRANSACTIONS',
               value: testnetStats.totalTransactions,
-              sub: backendOnline ? 'Saved to MongoDB' : 'Local session only',
+              // sub: backendOnline ? 'Saved to MongoDB' : 'Local session only',
               subColor: 'text-[#8892a0]',
             },
             {
