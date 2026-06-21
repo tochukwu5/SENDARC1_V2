@@ -36,12 +36,13 @@ export default function Home() {
             </p>
 
             <div className="mt-8 flex items-center justify-center gap-4 flex-wrap">
-              <Link
-                to="/send"
-                className="bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold text-base px-8 py-3 rounded-xl hover:opacity-90 transition-all hover:-translate-y-0.5 shadow-[0_0_24px_rgba(0,212,255,0.3)]"
+              <button
+                disabled
+                title="Arc Network mainnet has not launched yet"
+                className="bg-[#1e2530] text-[#556] font-['Space_Grotesk'] font-bold text-base px-8 py-3 rounded-xl cursor-not-allowed flex items-center gap-2"
               >
-                Send Money Now →
-              </Link>
+                Send money (🔒 Mainnet Coming Soon)
+              </button>
               <Link
                 to="/how-it-works"
                 className="border border-[#1e2530] text-white font-['Space_Grotesk'] font-semibold text-base px-8 py-3 rounded-xl hover:border-[#00D4FF] transition-all"
@@ -49,6 +50,13 @@ export default function Home() {
                 See How It Works
               </Link>
             </div>
+
+            <Link
+              to="/testnet"
+              className="inline-block mt-4 text-sm text-[#00D4FF] hover:underline"
+            >
+              Try the live testnet now →
+            </Link>
           </div>
 
           {/* Stats row */}
@@ -124,12 +132,13 @@ export default function Home() {
                 </div>
               </div>
 
-              <Link
-                to="/send"
-                className="block w-full bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold text-center py-3 rounded-xl hover:opacity-90 transition-all"
+              <button
+                disabled
+                title="Arc Network mainnet has not launched yet"
+                className="block w-full bg-[#1e2530] text-[#556] font-['Space_Grotesk'] font-bold text-center py-3 rounded-xl cursor-not-allowed"
               >
-                Send ${sendAmount} USDC →
-              </Link>
+               Send money (🔒 Mainnet Coming Soon)
+              </button>
 
               <p className="text-center text-[11px] text-[#556] mt-3">
                 Powered by <span className="text-[#00D4FF]">Arc Network</span> · Built on Circle USDC
@@ -231,12 +240,18 @@ export default function Home() {
       <section className="text-center px-6 pb-20">
         <h2 className="text-3xl font-bold mb-4">Ready to send money home?</h2>
         <p className="text-[#8892a0] mb-8">Join the movement. Send smarter with SendArc.</p>
-        <Link
-          to="/send"
-          className="inline-block bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold text-base px-10 py-4 rounded-xl hover:opacity-90 transition-all hover:-translate-y-0.5 shadow-[0_0_28px_rgba(0,212,255,0.3)]"
+        <button
+          disabled
+          title="Arc Network mainnet has not launched yet"
+          className="inline-flex items-center gap-2 bg-[#1e2530] text-[#556] font-['Space_Grotesk'] font-bold text-base px-10 py-4 rounded-xl cursor-not-allowed"
         >
-          Send Money Now →
-        </Link>
+          Send money (🔒 Mainnet Coming Soon)
+        </button>
+        <div>
+          <Link to="/testnet" className="inline-block mt-4 text-sm text-[#00D4FF] hover:underline">
+            Try the live testnet now →
+          </Link>
+        </div>
       </section>
     </div>
   )

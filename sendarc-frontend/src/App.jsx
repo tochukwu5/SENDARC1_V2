@@ -19,6 +19,7 @@ import { HowItWorks, CountriesPage, RatesPage, AboutPage, DocsPage } from './pag
 import TestnetHub from './pages/testnet/TestnetHub'
 import TestnetSend from './pages/testnet/TestnetSend'
 import { TestnetTransactions, TestnetLeaderboard } from './pages/testnet/TestnetPages'
+import AdminPage from './pages/AdminPage'
 
 function PublicLayout({ children }) {
   return (
@@ -80,6 +81,9 @@ export default function App() {
             <Route path="/testnet/send" element={<TestnetSend />} />
             <Route path="/testnet/transactions" element={<TestnetTransactions />} />
             <Route path="/testnet/leaderboard" element={<TestnetLeaderboard />} />
+
+            {/* Admin (password protected) */}
+            <Route path="/admin" element={<AdminPage />} />
 
             {/* 404 */}
             <Route path="*" element={

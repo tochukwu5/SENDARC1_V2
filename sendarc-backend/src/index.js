@@ -7,6 +7,7 @@ import mongoose from 'mongoose'
 import dotenv from 'dotenv'
 
 import testnetRoutes from './routes/testnet.js'
+import adminRoutes from './routes/admin.js'
 
 dotenv.config()
 
@@ -63,6 +64,7 @@ app.use('/api', rateLimit({
 
 // ─── Routes ───────────────────────────────────────────────────────────
 app.use('/api/testnet', testnetRoutes)
+app.use('/api/admin', adminRoutes)
 
 // Health check
 app.get('/health', (req, res) => {
