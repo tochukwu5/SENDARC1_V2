@@ -248,7 +248,7 @@ export default function Home() {
           Send money (🔒 Mainnet Coming Soon)
         </button>
         <div>
-          <Link to="/testnet" className="inline-block mt-4 text-sm text-[#00D4FF] hover:underline">
+          <Link to="/testnet" className="inline-block mt-4 text-sm text-[#00D4FF]  hover:underline">
             Try the live testnet now →
           </Link>
         </div>
