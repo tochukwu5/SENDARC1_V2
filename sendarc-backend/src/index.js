@@ -21,7 +21,7 @@ app.use(express.json({ limit: '10kb' }))
 
 // CORS — allow production + localhost for local dev always
 const PRODUCTION_ORIGINS = [
-   'http://localhost:5173',
+    'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
   'https://sendarc1.vercel.app',
@@ -48,7 +48,7 @@ app.use(cors({
     return callback(new Error('Not allowed by CORS: ' + origin))
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key'],
   credentials: true,
 }))
 
