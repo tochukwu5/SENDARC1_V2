@@ -28,6 +28,7 @@ const PRODUCTION_ORIGINS = [
   'https://sendarc.xyz',
   'https://www.sendarc.xyz',
   'https://sendarc1-production.up.railway.app',
+  'https://sendarc1v2-production.up.railway.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean)
 
