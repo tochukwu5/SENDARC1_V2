@@ -19,7 +19,7 @@ export default defineConfig({
       // In local dev, proxy all /api requests to your Railway backend
       // This avoids CORS entirely — the browser thinks it's calling localhost
       '/api': {
-        target: 'https://sendarc-backend-production.up.railway.app',
+        target: 'https://sendarc1v2-production-bc77.up.railway.app',
         changeOrigin: true,
         secure: true,
       },
