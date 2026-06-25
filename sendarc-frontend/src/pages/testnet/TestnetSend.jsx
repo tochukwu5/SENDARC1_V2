@@ -38,6 +38,7 @@ export default function TestnetSend() {
     if (isConnected && step === 0) setStep(1)
   }, [isConnected, step])
 
+  // When user picks a chain — switch MetaMask and load balance
   const handleChainSelect = async (chainKey) => {
     if (chainKey === sourceChainKey) return
     setSwitchingChain(true)
@@ -61,6 +62,7 @@ export default function TestnetSend() {
     }
   }
 
+  // Keep balance in sync when chain changes
   useEffect(() => {
     if (!account) return
     getUsdcBalance(sourceChainKey, account).then(setChainBalance)
@@ -164,12 +166,8 @@ export default function TestnetSend() {
                     <div className="text-4xl mb-4">🦊</div>
                     <h3 className="font-bold font-['Space_Grotesk'] mb-2">MetaMask Required</h3>
                     <p className="text-[#8892a0] text-sm mb-4">MetaMask is required to send USDC on any chain.</p>
-                    <a
-                      href="https://metamask.io"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="bg-[#e8821a] text-white font-['Space_Grotesk'] font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition-all inline-block"
-                    >
+                    <a href="https://metamask.io" target="_blank" rel="noreferrer"
+                      className="bg-[#e8821a] text-white font-['Space_Grotesk'] font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition-all inline-block">
                       Install MetaMask ↗
                     </a>
                   </div>
@@ -178,11 +176,8 @@ export default function TestnetSend() {
                     <div className="text-4xl mb-4">🦊</div>
                     <h3 className="font-bold font-['Space_Grotesk'] mb-2">Connect MetaMask</h3>
                     <p className="text-[#8892a0] text-sm mb-4">Connect once — we handle network switching automatically.</p>
-                    <button
-                      onClick={connect}
-                      disabled={isLoading}
-                      className="bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold px-8 py-3 rounded-xl hover:opacity-90 transition-all disabled:opacity-50"
-                    >
+                    <button onClick={connect} disabled={isLoading}
+                      className="bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold px-8 py-3 rounded-xl hover:opacity-90 transition-all disabled:opacity-50">
                       {isLoading ? 'Connecting…' : 'Connect MetaMask'}
                     </button>
                     {error && <p className="mt-3 text-red-400 text-xs">{error}</p>}
@@ -209,11 +204,9 @@ export default function TestnetSend() {
                             ? 'text-white'
                             : 'border-[#1e2530] text-[#8892a0] hover:border-[#00D4FF]/50 hover:text-white'
                         )}
-                        style={
-                          sourceChainKey === Object.keys(EVM_CHAINS).find(k => EVM_CHAINS[k].id === chain.id)
-                            ? { borderColor: chain.color, backgroundColor: chain.color + '15' }
-                            : {}
-                        }
+                        style={sourceChainKey === Object.keys(EVM_CHAINS).find(k => EVM_CHAINS[k].id === chain.id)
+                          ? { borderColor: chain.color, backgroundColor: chain.color + '15' }
+                          : {}}
                       >
                         <span>{chain.icon}</span>
                         <span>{chain.name}</span>
@@ -272,12 +265,7 @@ export default function TestnetSend() {
                   </div>
                   <div className="flex justify-between text-xs text-[#8892a0]">
                     <span>Your Balance: <span className="text-[#00D4FF]">{chainBalance} USDC</span></span>
-                    <button
-                      onClick={() => setAmount((parseFloat(chainBalance) - 0.001).toFixed(6))}
-                      className="text-[#00D4FF] hover:underline"
-                    >
-                      Max
-                    </button>
+                    <button onClick={() => setAmount((parseFloat(chainBalance) - 0.001).toFixed(6))} className="text-[#00D4FF] hover:underline">Max</button>
                   </div>
                   {afterSend !== null && (
                     <div className="flex justify-between text-xs mt-1">
@@ -379,17 +367,12 @@ export default function TestnetSend() {
                 )}
 
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => setStep(1)}
-                    className="flex-1 border border-[#1e2530] text-[#8892a0] py-3 rounded-xl hover:border-[#00D4FF] transition-all font-['Space_Grotesk'] font-semibold text-sm"
-                  >
+                  <button onClick={() => setStep(1)}
+                    className="flex-1 border border-[#1e2530] text-[#8892a0] py-3 rounded-xl hover:border-[#00D4FF] transition-all font-['Space_Grotesk'] font-semibold text-sm">
                     Edit
                   </button>
-                  <button
-                    onClick={handleSend}
-                    disabled={sending}
-                    className="flex-[2] bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold py-3 rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-                  >
+                  <button onClick={handleSend} disabled={sending}
+                    className="flex-[2] bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold py-3 rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60">
                     {sending ? (
                       <><LoadingSpinner size="sm" /> Processing…</>
                     ) : (
@@ -427,51 +410,32 @@ export default function TestnetSend() {
                   ))}
                   <div className="pt-1">
                     <p className="text-[10px] text-[#8892a0] mb-1">TX HASH</p>
-                    <a
-                      href={explorerTxUrl(txResult.hash)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[10px] text-[#00D4FF] font-mono break-all hover:underline"
-                    >
+                    <a href={explorerTxUrl(txResult.hash)} target="_blank" rel="noreferrer"
+                      className="text-[10px] text-[#00D4FF] font-mono break-all hover:underline">
                       {txResult.hash}
                     </a>
                   </div>
                 </div>
 
                 <div className="flex gap-3 mb-3">
-                  <a
-                    href={explorerTxUrl(txResult.hash)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 border border-[#00D4FF] text-[#00D4FF] py-2.5 rounded-xl text-sm font-['Space_Grotesk'] font-bold hover:bg-[#0a2030] transition-all text-center"
-                  >
+                  <a href={explorerTxUrl(txResult.hash)} target="_blank" rel="noreferrer"
+                    className="flex-1 border border-[#00D4FF] text-[#00D4FF] py-2.5 rounded-xl text-sm font-['Space_Grotesk'] font-bold hover:bg-[#0a2030] transition-all text-center">
                     View on Explorer ↗
                   </a>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(txResult.hash)}
-                    className="flex-1 border border-[#1e2530] text-[#8892a0] py-2.5 rounded-xl text-sm hover:border-[#00D4FF] transition-all"
-                  >
+                  <button onClick={() => navigator.clipboard.writeText(txResult.hash)}
+                    className="flex-1 border border-[#1e2530] text-[#8892a0] py-2.5 rounded-xl text-sm hover:border-[#00D4FF] transition-all">
                     📋 Copy TX Hash
                   </button>
                 </div>
 
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setStep(1)
-                      setRecipient('')
-                      setAmount('')
-                      setMemo('')
-                      setTxResult(null)
-                    }}
-                    className="flex-1 bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold py-2.5 rounded-xl text-sm hover:opacity-90 transition-all"
-                  >
+                  <button onClick={() => {
+                    setStep(1); setRecipient(''); setAmount(''); setMemo(''); setTxResult(null)
+                  }} className="flex-1 bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold py-2.5 rounded-xl text-sm hover:opacity-90 transition-all">
                     Send Another →
                   </button>
-                  <Link
-                    to="/testnet/transactions"
-                    className="flex-1 border border-[#1e2530] text-[#8892a0] py-2.5 rounded-xl text-sm hover:border-[#00D4FF] hover:text-white transition-all text-center"
-                  >
+                  <Link to="/testnet/transactions"
+                    className="flex-1 border border-[#1e2530] text-[#8892a0] py-2.5 rounded-xl text-sm hover:border-[#00D4FF] hover:text-white transition-all text-center">
                     View History
                   </Link>
                 </div>
@@ -529,7 +493,7 @@ export default function TestnetSend() {
             </Card>
 
             <Card className="p-5">
-              <p className="text-[10px] tracking-widest text-[#8892a0] mb-4">YOUR WALLET</p>
+              <p className="text-[10px] tracking-widests text-[#8892a0] mb-4">YOUR WALLET</p>
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-[#8892a0]">Address</span>
@@ -573,13 +537,9 @@ export default function TestnetSend() {
             </Card>
 
             <Card className="p-4">
-              <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">NEED TESTNET USDC?</p>
-              <a
-                href={ARC_TESTNET.faucetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="block w-full text-center border border-[#00D4FF] text-[#00D4FF] py-2.5 rounded-xl text-sm font-['Space_Grotesk'] font-bold hover:bg-[#0a2030] transition-all"
-              >
+              <p className="text-[10px] tracking-widests text-[#8892a0] mb-2">NEED TESTNET USDC?</p>
+              <a href={ARC_TESTNET.faucetUrl} target="_blank" rel="noreferrer"
+                className="block w-full text-center border border-[#00D4FF] text-[#00D4FF] py-2.5 rounded-xl text-sm font-['Space_Grotesk'] font-bold hover:bg-[#0a2030] transition-all">
                 Circle Faucet → 10 USDC Free
               </a>
             </Card>

@@ -9,8 +9,7 @@ export const ARC_TESTNET = {
   nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
 }
 
-// EVM chains that work with MetaMask — all have real USDC contracts
-// Users stay in MetaMask, we just switch the network automatically
+// EVM chains that work with MetaMask — all TESTNETS, no real money
 export const EVM_CHAINS = {
   arc: {
     id: 5042002,
@@ -19,58 +18,61 @@ export const EVM_CHAINS = {
     symbol: 'ARC',
     rpcUrl: 'https://rpc.testnet.arc.network',
     explorerUrl: 'https://testnet.arcscan.app',
-    // USDC is the native gas token on Arc
     usdcAddress: '0x3600000000000000000000000000000000000000',
     nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
     icon: '⬡',
     color: '#00D4FF',
     live: true,
     note: 'Native — real on-chain transaction',
   },
   ethereum: {
-    id: 1,
-    chainIdHex: '0x1',
-    name: 'Ethereum',
+    id: 11155111,
+    chainIdHex: '0xAA36A7',
+    name: 'Ethereum Sepolia',
     symbol: 'ETH',
-    rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-    explorerUrl: 'https://etherscan.io',
-    // Official USDC contract on Ethereum mainnet (Circle)
-    usdcAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    rpcUrl: 'https://rpc.sepolia.org',
+    explorerUrl: 'https://sepolia.etherscan.io',
+    // USDC on Ethereum Sepolia (Circle official)
+    usdcAddress: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
     icon: '⟠',
     color: '#627EEA',
     live: true,
-    note: 'Real USDC send on Ethereum',
+    note: 'Testnet — Ethereum Sepolia',
   },
   base: {
-    id: 8453,
-    chainIdHex: '0x2105',
-    name: 'Base',
-    symbol: 'BASE',
-    rpcUrl: 'https://mainnet.base.org',
-    explorerUrl: 'https://basescan.org',
-    // Official USDC contract on Base (Circle native USDC)
-    usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    id: 84532,
+    chainIdHex: '0x14A34',
+    name: 'Base Sepolia',
+    symbol: 'ETH',
+    rpcUrl: 'https://sepolia.base.org',
+    explorerUrl: 'https://sepolia.basescan.org',
+    // USDC on Base Sepolia (Circle official)
+    usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
     icon: '🔵',
     color: '#0052FF',
     live: true,
-    note: 'Real USDC send on Base',
+    note: 'Testnet — Base Sepolia',
   },
   arbitrum: {
-    id: 42161,
-    chainIdHex: '0xA4B1',
-    name: 'Arbitrum',
-    symbol: 'ARB',
-    rpcUrl: 'https://arb1.arbitrum.io/rpc',
-    explorerUrl: 'https://arbiscan.io',
-    // Official USDC contract on Arbitrum One (Circle native USDC)
-    usdcAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    id: 421614,
+    chainIdHex: '0x66EEE',
+    name: 'Arbitrum Sepolia',
+    symbol: 'ETH',
+    rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
+    explorerUrl: 'https://sepolia.arbiscan.io',
+    // USDC on Arbitrum Sepolia (Circle official)
+    usdcAddress: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+    nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
     icon: '🔷',
     color: '#28A0F0',
     live: true,
-    note: 'Real USDC send on Arbitrum',
+    note: 'Testnet — Arbitrum Sepolia',
   },
 }
 
@@ -159,8 +161,8 @@ export async function sendUsdcOnChain(chainKey, { to, amount }) {
       simulated: false,
     }
   } else {
-    // Ethereum/Base/Arbitrum: call USDC ERC-20 transfer(to, amount)
-    // USDC uses 6 decimals on all these chains
+    // Ethereum Sepolia / Base Sepolia / Arbitrum Sepolia:
+    // Call USDC ERC-20 transfer(to, amount) — all Sepolia USDC uses 6 decimals
     const rawAmount = BigInt(Math.round(parseFloat(amount) * 1_000_000))
     const amountHex = rawAmount.toString(16).padStart(64, '0')
     const toHex = to.slice(2).padStart(64, '0')
@@ -211,6 +213,8 @@ export async function sendUsdcOnChain(chainKey, { to, amount }) {
 }
 
 // Get USDC balance on any EVM chain
+// Arc: USDC is native token (18 decimals via eth_getBalance)
+// Sepolia chains: ERC-20 USDC (6 decimals via balanceOf call)
 export async function getUsdcBalance(chainKey, address) {
   if (!window.ethereum) return '0'
   const chain = EVM_CHAINS[chainKey]
@@ -218,14 +222,13 @@ export async function getUsdcBalance(chainKey, address) {
 
   try {
     if (chainKey === 'arc') {
-      // Arc: USDC is native, use eth_getBalance
       const raw = await window.ethereum.request({
         method: 'eth_getBalance',
         params: [address, 'latest'],
       })
       return (parseInt(raw, 16) / 1e18).toFixed(6)
     } else {
-      // ERC-20 balanceOf(address) selector = 0x70a08231
+      // ERC-20 balanceOf(address) — USDC uses 6 decimals on all Sepolia chains
       const paddedAddr = address.slice(2).padStart(64, '0')
       const result = await window.ethereum.request({
         method: 'eth_call',
@@ -234,8 +237,9 @@ export async function getUsdcBalance(chainKey, address) {
           data: '0x70a08231' + paddedAddr,
         }, 'latest'],
       })
+      if (!result || result === '0x') return '0.000000'
       const raw = parseInt(result, 16)
-      return (raw / 1_000_000).toFixed(6) // USDC = 6 decimals
+      return (raw / 1_000_000).toFixed(6)
     }
   } catch {
     return '0'
