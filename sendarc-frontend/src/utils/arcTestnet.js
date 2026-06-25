@@ -77,31 +77,37 @@ export const EVM_CHAINS = {
 }
 
 // Switch MetaMask to any EVM chain by chain key
+// Always tries to add the chain if switching fails — handles all MetaMask versions
 export async function switchToChain(chainKey) {
   if (!window.ethereum) throw new Error('MetaMask not found')
   const chain = EVM_CHAINS[chainKey]
   if (!chain) throw new Error('Unknown chain: ' + chainKey)
 
+  // Always try to add/update the chain first, then switch
+  // This handles users who don't have the chain added yet (any MetaMask version)
   try {
     await window.ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: chain.chainIdHex }],
+      method: 'wallet_addEthereumChain',
+      params: [{
+        chainId: chain.chainIdHex,
+        chainName: chain.name,
+        nativeCurrency: chain.nativeCurrency,
+        rpcUrls: [chain.rpcUrl],
+        blockExplorerUrls: [chain.explorerUrl],
+      }],
     })
-  } catch (err) {
-    // Chain not added to MetaMask yet — add it automatically
-    if (err.code === 4902) {
+  } catch (addErr) {
+    // wallet_addEthereumChain can throw code 4001 if user rejects
+    if (addErr.code === 4001) throw new Error('User rejected adding the network.')
+    // If already added, wallet_addEthereumChain sometimes errors — that's fine, try switching
+    try {
       await window.ethereum.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-          chainId: chain.chainIdHex,
-          chainName: chain.name,
-          nativeCurrency: chain.nativeCurrency,
-          rpcUrls: [chain.rpcUrl],
-          blockExplorerUrls: [chain.explorerUrl],
-        }],
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: chain.chainIdHex }],
       })
-    } else {
-      throw err
+    } catch (switchErr) {
+      if (switchErr.code === 4001) throw new Error('User rejected the network switch.')
+      throw switchErr
     }
   }
 }
