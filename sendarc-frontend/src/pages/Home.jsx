@@ -12,9 +12,9 @@ export default function Home() {
 
   return (
     <div className="bg-[#0D1117] min-h-screen">
+
       {/* Hero */}
       <section className="relative overflow-hidden">
-        {/* Glow BG */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-[600px] h-[500px] rounded-full bg-[#00D4FF] opacity-[0.06] blur-[120px]" />
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-[#0055FF] opacity-[0.05] blur-[100px]" />
@@ -23,19 +23,20 @@ export default function Home() {
 
         <div className="relative max-w-7xl mx-auto px-6 pt-20 pb-16">
           <div className="text-center max-w-3xl mx-auto mb-14">
-            <Badge>🌍 AFRICA'S FASTEST REMITTANCE NETWORK</Badge>
+            <Badge>🌐 THE WORLD'S FASTEST REMITTANCE NETWORK</Badge>
 
             <h1 className="mt-6 text-5xl md:text-6xl font-bold leading-tight">
-              Send Money to<br />
-              <span className="gradient-text">Africa Instantly</span>
+              Send Money<br />
+              <span className="gradient-text">Anywhere, Instantly</span>
             </h1>
 
             <p className="mt-5 text-[#8892a0] text-lg leading-relaxed">
-              Zero bank delays. Near-zero fees. Send USDC to Nigeria, Ghana,
-              Kenya and more — your family receives in under 1 second.
+              Zero bank delays. Near-zero fees. Send USDC to 18+ countries across
+              every continent recipients receive in under 1 second.
             </p>
 
             <div className="mt-8 flex items-center justify-center gap-4 flex-wrap">
+              {/* Mainnet send button — disabled until Arc mainnet launches */}
               <button
                 disabled
                 title="Arc Network mainnet has not launched yet"
@@ -62,10 +63,10 @@ export default function Home() {
           {/* Stats row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-14">
             {[
-              { value: '<1s', label: 'SETTLEMENT TIME' },
+              { value: '<1s',    label: 'SETTLEMENT TIME' },
               { value: '$0.003', label: 'AVG. FEE' },
-              { value: '24/7', label: 'ALWAYS OPEN' },
-              { value: '8', label: 'AFRICAN COUNTRIES' },
+              { value: '24/7',   label: 'ALWAYS OPEN' },
+              { value: '18+',    label: 'COUNTRIES SUPPORTED' },
             ].map(s => <StatCard key={s.label} {...s} />)}
           </div>
 
@@ -80,9 +81,8 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* You send */}
               <div className="mb-3">
-                <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">YOU SEND</p>
+                <p className="text-[10px] tracking-widests text-[#8892a0] mb-2">YOU SEND (USDC)</p>
                 <div className="flex items-center gap-3 bg-[#0D1117] border border-[#1e2530] rounded-lg px-4 py-3">
                   <input
                     type="number"
@@ -94,14 +94,12 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Arrow */}
               <div className="flex justify-center my-3">
                 <div className="w-8 h-8 rounded-full bg-[#0a2030] border border-[#00D4FF] flex items-center justify-center text-[#00D4FF] text-sm">↓</div>
               </div>
 
-              {/* They receive */}
               <div className="mb-4">
-                <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">THEY RECEIVE</p>
+                <p className="text-[10px] tracking-widests text-[#8892a0] mb-2">THEY RECEIVE</p>
                 <div className="flex items-center gap-3 bg-[#0D1117] border border-[#1e2530] rounded-lg px-4 py-3">
                   <span className="flex-1 text-xl font-bold text-[#00D4FF] font-['Space_Grotesk']">{received}</span>
                   <select
@@ -116,11 +114,12 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Rate breakdown */}
               <div className="space-y-2 mb-5 text-sm">
                 <div className="flex justify-between text-[#8892a0]">
                   <span>Exchange Rate</span>
-                  <span className="text-[#00D4FF] font-semibold">1 USDC = {selectedCountry.symbol}{selectedCountry.rate.toLocaleString()}</span>
+                  <span className="text-[#00D4FF] font-semibold">
+                    1 USDC = {selectedCountry.symbol}{selectedCountry.rate.toLocaleString()} {selectedCountry.currency}
+                  </span>
                 </div>
                 <div className="flex justify-between text-[#8892a0]">
                   <span>Network Fee (Arc)</span>
@@ -128,16 +127,17 @@ export default function Home() {
                 </div>
                 <div className="flex justify-between text-[#8892a0]">
                   <span>You Save vs. Western Union</span>
-                  <span className="text-green-400">~$4.97</span>
+                  <span className="text-green-400">~$4.97 per transfer</span>
                 </div>
               </div>
 
+              {/* Mainnet CTA — disabled */}
               <button
                 disabled
                 title="Arc Network mainnet has not launched yet"
                 className="block w-full bg-[#1e2530] text-[#556] font-['Space_Grotesk'] font-bold text-center py-3 rounded-xl cursor-not-allowed"
               >
-               Send money (🔒 Mainnet Coming Soon)
+                Send money (🔒 Mainnet Coming Soon)
               </button>
 
               <p className="text-center text-[11px] text-[#556] mt-3">
@@ -151,16 +151,18 @@ export default function Home() {
       {/* Countries strip */}
       <section className="border-t border-b border-[#1e2530] bg-[#0f1822] py-10 px-6">
         <div className="max-w-7xl mx-auto">
-          <p className="text-center section-label mb-6">SUPPORTED DESTINATIONS</p>
-          <h2 className="text-center text-3xl font-bold mb-8">Send to 8 African Countries</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <p className="text-center section-label mb-3">GLOBAL REACH</p>
+          <h2 className="text-center text-3xl font-bold mb-2">Send to 18+ Countries Worldwide</h2>
+          <p className="text-center text-[#8892a0] text-sm mb-8">
+            Africa · Americas · Asia Pacific · Europe · Middle East
+          </p>
+          <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-9 gap-3">
             {liveCountries.map(c => (
               <Link key={c.code} to="/countries">
-                <div className="bg-[#0D1117] border border-[#1e2530] hover:border-[#00D4FF] transition-colors rounded-xl p-4 text-center group">
-                  <div className="text-2xl mb-2">{c.flag}</div>
-                  <div className="font-semibold text-sm font-['Space_Grotesk']">{c.name}</div>
-                  <div className="text-[10px] text-[#8892a0] mt-1">{c.currency} · {c.symbol}</div>
-                  <div className="text-[11px] text-[#00D4FF] mt-1">{c.symbol}{c.rate.toLocaleString()} / USDC</div>
+                <div className="bg-[#0D1117] border border-[#1e2530] hover:border-[#00D4FF] transition-colors rounded-xl p-3 text-center group">
+                  <div className="text-2xl mb-1.5">{c.flag}</div>
+                  <div className="font-semibold text-xs font-['Space_Grotesk'] truncate">{c.name}</div>
+                  <div className="text-[9px] text-[#8892a0] mt-0.5">{c.currency}</div>
                 </div>
               </Link>
             ))}
@@ -174,10 +176,10 @@ export default function Home() {
         <h2 className="text-center text-3xl font-bold mb-12">How SendArc Works</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
-            { num: '01', icon: '👛', title: 'Connect Your Wallet', desc: 'Connect MetaMask or any EVM wallet. No bank account needed. Works with USDC on any chain.' },
-            { num: '02', icon: '💸', title: 'Enter Amount & Recipient', desc: 'Enter how much to send and your recipient\'s wallet address or payment link. See exact fees upfront.' },
-            { num: '03', icon: '⚡', title: 'Arc Settles Instantly', desc: 'Arc Network confirms your transaction in under 1 second. No bank hours. No waiting days.' },
-            { num: '04', icon: '✅', title: 'Recipient Gets USDC', desc: 'Your family receives USDC in their wallet instantly. On-chain receipt generated for full transparency.' },
+            { num: '01', icon: '👛', title: 'Connect Your Wallet', desc: 'Connect MetaMask or any EVM wallet. No bank account needed. Works with USDC on Arc, Ethereum, Base, or Arbitrum.' },
+            { num: '02', icon: '💸', title: 'Enter Amount & Recipient', desc: 'Choose your source chain, pick the destination country, and paste the recipient wallet address. Exact fees shown upfront.' },
+            { num: '03', icon: '⚡', title: 'Arc Settles Instantly', desc: 'Arc Network confirms your transaction in under 1 second. No bank hours. No waiting. Deterministic, irreversible finality.' },
+            { num: '04', icon: '✅', title: 'Recipient Gets USDC', desc: 'Your recipient gets USDC instantly in their wallet. On-chain receipt auto-generated and shareable via WhatsApp or PDF.' },
           ].map(step => (
             <Card key={step.num} className="p-6 relative">
               <div className="text-3xl font-bold text-[#1e2530] font-['Space_Grotesk'] mb-4">{step.num}</div>
@@ -194,12 +196,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <p className="section-label text-center mb-3">FEE COMPARISON</p>
           <h2 className="text-center text-3xl font-bold mb-3">SendArc vs The Old Way</h2>
-          <p className="text-center text-[#8892a0] text-sm mb-10">Sending $100 to Nigeria — all providers compared</p>
+          <p className="text-center text-[#8892a0] text-sm mb-10">Sending $100 internationally — all providers compared</p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {COMPETITORS.map(c => (
-              <div key={c.name} className={`rounded-xl p-6 text-center border ${c.badge === 'best' ? 'bg-[#0a2030] border-[#00D4FF] shadow-[0_0_20px_rgba(0,212,255,0.1)]' : 'bg-[#0D1117] border-[#1e2530]'}`}>
+              <div key={c.name} className={'rounded-xl p-6 text-center border ' + (c.badge === 'best' ? 'bg-[#0a2030] border-[#00D4FF] shadow-[0_0_20px_rgba(0,212,255,0.1)]' : 'bg-[#0D1117] border-[#1e2530]')}>
                 <p className="text-[11px] text-[#8892a0] tracking-wider mb-3 font-['Space_Grotesk']">{c.name.toUpperCase()}</p>
-                <p className={`text-4xl font-bold font-['Space_Grotesk'] mb-2 ${c.badge === 'best' ? 'text-[#00D4FF]' : 'text-red-400'}`}>{c.fee}</p>
+                <p className={'text-4xl font-bold font-[\'Space_Grotesk\'] mb-2 ' + (c.badge === 'best' ? 'text-[#00D4FF]' : 'text-red-400')}>{c.fee}</p>
                 <p className="text-xs text-[#8892a0] mb-4">{c.time}</p>
                 {c.badge === 'best'
                   ? <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-900/30 border border-green-500 text-green-400">Best value</span>
@@ -218,18 +220,19 @@ export default function Home() {
             <p className="section-label mb-3">POWERED BY</p>
             <h2 className="text-3xl font-bold mb-3">Built on Arc Network<br />by Circle</h2>
             <p className="text-[#8892a0] text-sm leading-relaxed max-w-md">
-              SendArc runs on Arc — a stablecoin-native Layer-1 blockchain built by Circle, the company behind USDC. Backed by Goldman Sachs, Mastercard, and Visa.
+              SendArc runs on Arc, a stablecoin-native Layer-1 blockchain built by Circle,
+              the company behind USDC. Backed by Goldman Sachs, Mastercard, and Visa.
             </p>
           </div>
           <div className="grid grid-cols-3 gap-6 text-center flex-shrink-0">
             {[
               { v: '$0.003', l: 'AVG FEE PER TX' },
-              { v: '<1s', l: 'FINALITY' },
-              { v: '100%', l: 'USDC BACKED' },
+              { v: '<1s',    l: 'FINALITY' },
+              { v: '100%',  l: 'USDC BACKED' },
             ].map(s => (
               <div key={s.l}>
                 <div className="text-2xl font-bold text-[#00D4FF] font-['Space_Grotesk']">{s.v}</div>
-                <div className="text-[10px] text-[#8892a0] tracking-widest mt-1">{s.l}</div>
+                <div className="text-[10px] text-[#8892a0] tracking-widests mt-1">{s.l}</div>
               </div>
             ))}
           </div>
@@ -238,8 +241,10 @@ export default function Home() {
 
       {/* CTA */}
       <section className="text-center px-6 pb-20">
-        <h2 className="text-3xl font-bold mb-4">Ready to send money home?</h2>
-        <p className="text-[#8892a0] mb-8">Join the movement. Send smarter with SendArc.</p>
+        <h2 className="text-3xl font-bold mb-4">Ready to send money globally?</h2>
+        <p className="text-[#8892a0] mb-8">Join the movement. Send smarter — anywhere in the world — with SendArc.</p>
+
+        {/* Mainnet CTA — disabled until Arc mainnet launches */}
         <button
           disabled
           title="Arc Network mainnet has not launched yet"
@@ -247,8 +252,9 @@ export default function Home() {
         >
           Send money (🔒 Mainnet Coming Soon)
         </button>
+
         <div>
-          <Link to="/testnet" className="inline-block mt-4 text-sm text-[#00D4FF]  hover:underline">
+          <Link to="/testnet" className="inline-block mt-4 text-sm text-[#00D4FF] hover:underline">
             Try the live testnet now →
           </Link>
         </div>

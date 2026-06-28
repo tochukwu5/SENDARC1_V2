@@ -35,6 +35,22 @@ function PublicLayout({ children }) {
 // This component sits inside the app and watches for MetaMask auto-reconnect
 // The moment account becomes available (on any page, including after refresh)
 // it automatically loads the user's MongoDB data
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '')
+
+// Auto-register wallet in MongoDB the moment it connects
+// This ensures every wallet is tracked from first interaction — not just after first tx
+async function registerWalletSilently(address) {
+  try {
+    await fetch(API_BASE + '/testnet/wallet/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walletAddress: address.toLowerCase() }),
+    })
+  } catch {
+    // Non-fatal — wallet will still be created when first transaction is recorded
+  }
+}
+
 function WalletBridge() {
   const { account, isConnected } = useArcTestnet()
   const { loadTransactions } = useTestnet()
@@ -42,6 +58,9 @@ function WalletBridge() {
   useEffect(() => {
     if (account && isConnected) {
       console.log('WalletBridge: account detected, loading MongoDB data for', account)
+      // Register wallet immediately — creates WalletStats entry so admin can see it
+      // even before the user sends any transactions
+      registerWalletSilently(account)
       loadTransactions(account)
     }
   }, [account, isConnected])

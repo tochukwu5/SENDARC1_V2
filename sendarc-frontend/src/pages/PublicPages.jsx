@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { COUNTRIES, COMPETITORS } from '../data/constants'
+import { COUNTRIES, COMPETITORS, REGIONS } from '../data/constants'
 import { Badge, Card, StatCard, LiveBadge } from '../components/UI'
 import Footer from '../components/Footer'
 import Navbar from '../components/Navbar'
@@ -9,15 +9,15 @@ import Navbar from '../components/Navbar'
 export function HowItWorks() {
   const steps = [
     { num: '01', icon: '👛', tag: 'STEP ONE', title: 'Connect your wallet', desc: 'Connect MetaMask, Coinbase Wallet, or any EVM-compatible wallet. No bank account, no KYC for basic transfers. Your wallet is your identity on Arc Network.', details: [{ l: 'Supported wallets', v: 'MetaMask, WalletConnect, Coinbase' }, { l: 'Network', v: 'Arc Testnet (EVM)' }, { l: 'Token required', v: 'USDC (Circle)' }] },
-    { num: '02', icon: '💸', tag: 'STEP TWO', title: 'Enter amount & recipient', desc: 'Choose your source chain, enter how much USDC to send, pick the destination country, and paste or scan the recipient\'s wallet address. See exact fees before you send — no surprises.', details: [{ l: 'Source chains', v: 'Arc, Ethereum, Base, Arbitrum, Solana' }, { l: 'Destinations', v: '8 African countries' }, { l: 'Fee shown upfront', v: '~$0.003' }] },
-    { num: '03', icon: '⚡', tag: 'STEP THREE', title: 'Arc settles instantly', desc: 'Once you confirm the transaction in your wallet, Arc Network processes and finalises it in under one second. Deterministic finality — no challenge period, no waiting.', details: [{ l: 'Settlement time', v: '< 1 second' }, { l: 'Finality type', v: 'Deterministic · Irreversible' }, { l: 'Network fee', v: '$0.003 USDC' }] },
+    { num: '02', icon: '💸', tag: 'STEP TWO', title: 'Enter amount & recipient', desc: 'Choose your source chain, enter how much USDC to send, pick the destination country, and paste or scan the recipient\'s wallet address. See exact fees before you send — no surprises.', details: [{ l: 'Source chains', v: 'Arc, Ethereum, Base, Arbitrum, Solana' }, { l: 'Destinations', v: '18+ countries worldwide' }, { l: 'Fee shown upfront', v: '~$0.003' }] },
+    { num: '03', icon: '⚡', tag: 'STEP THREE', title: 'Arc settles instantly', desc: 'Once you confirm the transaction in your wallet, Arc Network processes and finalises it in under one second. Deterministic finality no challenge period, no waiting.', details: [{ l: 'Settlement time', v: '< 1 second' }, { l: 'Finality type', v: 'Deterministic · Irreversible' }, { l: 'Network fee', v: '$0.003 USDC' }] },
     { num: '04', icon: '✅', tag: 'STEP FOUR', title: 'Recipient gets USDC', desc: 'Your family receives USDC directly in their wallet. They can hold it, spend it, or cash out through local partners. An on-chain receipt is auto-generated and shareable via WhatsApp.', details: [{ l: 'Receipt type', v: 'On-chain · Downloadable PDF' }, { l: 'Shareable via', v: 'WhatsApp · Copy TX ID' }, { l: 'Explorer', v: 'ArcScan (public)' }] },
   ]
 
   const faqs = [
     { q: 'Do I need a bank account?', a: 'No. SendArc is fully non-custodial. You only need a crypto wallet like MetaMask. No bank account, no wire transfer, no paperwork.' },
     { q: 'How does the recipient cash out?', a: 'Recipients can hold USDC in their wallet, spend it with USDC-accepting merchants, or use local partners like Mara, Yellow Card, or Binance P2P to convert to local currency.' },
-    { q: 'What is Arc Network?', a: 'Arc is a stablecoin-native Layer-1 blockchain built by Circle — the company behind USDC. It offers sub-second finality, USDC-denominated fees, and is backed by Goldman Sachs, Mastercard, and Visa.' },
+    { q: 'What is Arc Network?', a: 'Arc is a stablecoin-native Layer-1 blockchain built by Circle the company behind USDC. It offers sub-second finality, USDC-denominated fees, and is backed by Goldman Sachs, Mastercard, and Visa.' },
     { q: 'Is my money safe?', a: 'USDC is fully backed 1:1 by US dollars and issued by Circle. Every transaction is recorded on-chain and publicly verifiable on ArcScan. SendArc never holds your funds.' },
   ]
 
@@ -32,7 +32,7 @@ export function HowItWorks() {
           <div className="max-w-5xl mx-auto px-6 pt-16 pb-10 text-center">
             <Badge>SIMPLE PROCESS</Badge>
             <h1 className="text-4xl md:text-5xl font-bold mt-5 mb-4">How <span className="gradient-text">SendArc</span> Works</h1>
-            <p className="text-[#8892a0] text-base max-w-xl mx-auto leading-relaxed">Four simple steps. No bank account needed. Your family receives USDC in under one second — on-chain and verifiable.</p>
+            <p className="text-[#8892a0] text-base max-w-xl mx-auto leading-relaxed">Four simple steps. No bank account needed. Your family receives USDC in under one second on-chain and verifiable.</p>
           </div>
         </div>
 
@@ -79,9 +79,19 @@ export function HowItWorks() {
 
           {/* CTA */}
           <div className="mt-12 text-center">
-            <Link to="/send" className="inline-block bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold text-base px-10 py-4 rounded-xl hover:opacity-90 transition-all shadow-[0_0_24px_rgba(0,212,255,0.3)]">
-              Send Money Now →
-            </Link>
+            {/* Send Money CTA — disabled until Arc mainnet launches */}
+            <button
+              disabled
+              title="Arc Network mainnet has not launched yet"
+              className="inline-flex items-center gap-2 bg-[#1e2530] text-[#556] font-['Space_Grotesk'] font-bold text-base px-10 py-4 rounded-xl cursor-not-allowed mb-3"
+            >
+              Send money (🔒 Mainnet Coming Soon)
+            </button>
+            <div>
+              <Link to="/testnet" className="text-sm text-[#00D4FF] hover:underline">
+                Try the live testnet now →
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -92,7 +102,8 @@ export function HowItWorks() {
 
 // ─── COUNTRIES PAGE ──────────────────────────────────────────────────
 export function CountriesPage() {
-  const live = COUNTRIES.filter(c => c.status === 'live')
+  const [activeRegion, setActiveRegion] = useState('All')
+  const live = COUNTRIES.filter(c => c.status === 'live' && (activeRegion === 'All' || c.region === activeRegion))
   const soon = COUNTRIES.filter(c => c.status === 'soon')
 
   return (
@@ -100,9 +111,11 @@ export function CountriesPage() {
       <Navbar />
       <div className="bg-[#0D1117] min-h-screen">
         <div className="max-w-6xl mx-auto px-6 pt-16 pb-10 text-center">
-          <Badge>SUPPORTED DESTINATIONS</Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mt-5 mb-4">Send to <span className="gradient-text">8 African Countries</span></h1>
-          <p className="text-[#8892a0] text-base max-w-xl mx-auto leading-relaxed">Instant USDC transfers across Africa — with live exchange rates updated every 60 seconds from Arc Network.</p>
+          <Badge>GLOBAL REACH</Badge>
+          <h1 className="text-4xl md:text-5xl font-bold mt-5 mb-4">Send to <span className="gradient-text">18+ Countries Worldwide</span></h1>
+          <p className="text-[#8892a0] text-base max-w-xl mx-auto leading-relaxed">
+            Instant USDC transfers across every continent with live exchange rates updated every 60 seconds from Arc Network.
+          </p>
           <div className="flex items-center justify-center gap-2 mt-5 text-sm text-[#8892a0]">
             <span className="live-dot" />
             Rates live · Updated 12 seconds ago
@@ -110,9 +123,25 @@ export function CountriesPage() {
         </div>
 
         <div className="max-w-6xl mx-auto px-6 pb-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-12">
-            {[{ v: '8', l: 'COUNTRIES' }, { v: '<1s', l: 'SETTLEMENT' }, { v: '$0.003', l: 'AVG FEE' }, { v: '24/7', l: 'ALWAYS OPEN' }].map(s => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+            {[{ v: '18+', l: 'COUNTRIES' }, { v: '<1s', l: 'SETTLEMENT' }, { v: '$0.003', l: 'AVG FEE' }, { v: '24/7', l: 'ALWAYS OPEN' }].map(s => (
               <StatCard key={s.l} value={s.v} label={s.l} />
+            ))}
+          </div>
+
+          <div className="flex gap-2 flex-wrap mb-8">
+            {REGIONS.map(r => (
+              <button
+                key={r}
+                onClick={() => setActiveRegion(r)}
+                className={"px-4 py-2 rounded-xl text-sm font-semibold border transition-all " + (
+                  activeRegion === r
+                    ? "bg-[#0a2030] border-[#00D4FF] text-[#00D4FF]"
+                    : "border-[#1e2530] text-[#8892a0] hover:border-[#00D4FF]/50 hover:text-white"
+                )}
+              >
+                {r}
+              </button>
             ))}
           </div>
 
@@ -124,48 +153,51 @@ export function CountriesPage() {
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{c.flag}</span>
                     <div>
-                      <p className="font-bold font-['Space_Grotesk'] text-lg">{c.name}</p>
-                      <p className="text-xs text-[#8892a0]">{c.currency} · {c.symbol}</p>
+                      <p className="font-bold font-[\'Space_Grotesk\'] text-lg">{c.name}</p>
+                      <p className="text-xs text-[#8892a0]">{c.currency} · {c.symbol} · {c.region}</p>
                     </div>
                   </div>
                   <LiveBadge />
                 </div>
-
                 <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl p-4 mb-4">
-                  <p className="text-2xl font-bold text-[#00D4FF] font-['Space_Grotesk']">{c.symbol}{c.rate.toLocaleString()} / USDC</p>
+                  <p className="text-2xl font-bold text-[#00D4FF] font-[\'Space_Grotesk\']">{c.symbol}{c.rate.toLocaleString()} / USDC</p>
                   <p className="text-xs text-[#8892a0] mt-1">1 USDC = {c.symbol}{c.rate.toLocaleString()} · Updated 12s ago</p>
                 </div>
-
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {[{ l: 'AVG FEE', v: '$0.003' }, { l: 'SETTLEMENT', v: '< 1 second' }, { l: 'MIN SEND', v: '$1 USDC' }, { l: 'MAX SEND', v: '$50,000 USDC' }].map(d => (
                     <div key={d.l} className="bg-[#13181f] rounded-lg p-2.5">
                       <p className="text-[10px] text-[#8892a0] mb-1">{d.l}</p>
-                      <p className="text-sm font-semibold font-['Space_Grotesk']">{d.v}</p>
+                      <p className="text-sm font-semibold font-[\'Space_Grotesk\']">{d.v}</p>
                     </div>
                   ))}
                 </div>
-
-                <div>
-                  <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">CASHOUT OPTIONS</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {c.cashout.map(co => (
-                      <span key={co} className="text-[10px] border border-[#1e2530] text-[#8892a0] px-2 py-0.5 rounded-full">{co}</span>
-                    ))}
-                    <span className="text-[10px] border border-[#1e2530] text-[#8892a0] px-2 py-0.5 rounded-full">Hold USDC</span>
+                {c.cashout.length > 0 && (
+                  <div>
+                    <p className="text-[10px] tracking-widests text-[#8892a0] mb-2">CASHOUT OPTIONS</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {c.cashout.map(co => (
+                        <span key={co} className="text-[10px] border border-[#1e2530] text-[#8892a0] px-2 py-0.5 rounded-full">{co}</span>
+                      ))}
+                      <span className="text-[10px] border border-[#1e2530] text-[#8892a0] px-2 py-0.5 rounded-full">Hold USDC</span>
+                    </div>
                   </div>
-                </div>
+                )}
               </Card>
             ))}
+            {live.length === 0 && (
+              <div className="col-span-2 text-center py-12 text-[#556]">No countries available for this region yet,more launching soon.</div>
+            )}
           </div>
 
           <p className="section-label text-center mb-4">COMING SOON</p>
-          <h2 className="text-2xl font-bold text-center mb-2 font-['Space_Grotesk']">Expanding across Africa</h2>
-          <p className="text-[#8892a0] text-sm text-center mb-8">More countries launching soon</p>
+          <h2 className="text-2xl font-bold text-center mb-2 font-[\'Space_Grotesk\']">Expanding globally</h2>
+          <p className="text-[#8892a0] text-sm text-center mb-8">More countries across every continent launching soon</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
             {soon.map(c => (
               <Card key={c.code} className="p-5 text-center opacity-60">
                 <div className="text-3xl mb-2">{c.flag}</div>
-                <p className="font-semibold font-['Space_Grotesk'] mb-2">{c.name}</p>
+                <p className="font-semibold font-[\'Space_Grotesk\'] mb-1">{c.name}</p>
+                <p className="text-[10px] text-[#8892a0] mb-2">{c.region}</p>
                 <span className="text-[11px] border border-amber-500 text-amber-400 px-2 py-0.5 rounded-full bg-amber-900/10">Coming soon</span>
               </Card>
             ))}
@@ -190,7 +222,7 @@ export function RatesPage() {
         <div className="max-w-6xl mx-auto px-6 pt-16 pb-10 text-center">
           <Badge>TRANSPARENT PRICING</Badge>
           <h1 className="text-4xl md:text-5xl font-bold mt-5 mb-4">Live <span className="gradient-text">Exchange Rates</span></h1>
-          <p className="text-[#8892a0] text-base max-w-xl mx-auto leading-relaxed">Real-time rates across all 8 African destinations. Fees shown upfront. No hidden charges, ever.</p>
+          <p className="text-[#8892a0] text-base max-w-xl mx-auto leading-relaxed">Real-time rates across all 18+ global destinations. Fees shown upfront. No hidden charges, ever.</p>
           <div className="flex items-center justify-center gap-2 mt-5 text-sm text-[#8892a0]">
             <span className="live-dot" />
             Rates update every 60 seconds · Powered by Arc Network
@@ -267,7 +299,7 @@ export function RatesPage() {
           {/* Fee comparison */}
           <p className="section-label mb-2">FEE COMPARISON</p>
           <h2 className="text-xl font-bold font-['Space_Grotesk'] mb-1">SendArc vs the old way</h2>
-          <p className="text-[#8892a0] text-sm mb-5">Sending $100 to Nigeria — all providers compared</p>
+          <p className="text-[#8892a0] text-sm mb-5">Sending $100 internationally — all providers compared</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {COMPETITORS.map(c => (
               <div key={c.name} className={`rounded-xl p-6 text-center border ${c.badge === 'best' ? 'bg-[#0a2030] border-[#00D4FF]' : 'bg-[#0f1822] border-[#1e2530]'}`}>
@@ -322,14 +354,14 @@ export function AboutPage() {
           <div className="max-w-6xl mx-auto">
             <p className="section-label text-center mb-3">THE OPPORTUNITY</p>
             <h2 className="text-2xl font-bold text-center mb-3 font-['Space_Grotesk']">
-              Africa is the world's largest remittance market
+              Global remittance is broken
             </h2>
             <p className="text-center text-[#8892a0] text-sm max-w-xl mx-auto mb-10">
-              And the most underserved. Sub-Saharan Africa pays the highest remittance fees in the world — an average of 8% per transaction.
+              Billions of people send money across borders every year, but the system is slow, expensive, and built for banks — not people. SendArc changes that with near-zero fees and instant settlement.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {[
-                { num: '$54B', title: 'Sent to Sub-Saharan Africa annually', desc: 'Africa receives over $54 billion in remittances every year from the diaspora.' },
+                { num: '$800B', title: 'Sent globally in remittances annually', desc: 'Over $800 billion moves across borders every year — most of it eaten by fees and delays.' },
                 { num: '8%', title: 'Average remittance fee to Africa', desc: 'Nearly 3x what it costs using stablecoins on Arc Network.' },
                 { num: '$0.003', title: 'SendArc fee per transaction', desc: 'Fractions of a cent — regardless of whether you send $10 or $10,000.' },
               ].map(s => (
@@ -358,7 +390,7 @@ export function AboutPage() {
 
   <div className="flex-1">
     <div className="flex flex-wrap items-center gap-3 mb-1">
-      <h3 className="text-xl font-bold font-['Space_Grotesk']">Eze Julius</h3>
+      <h3 className="text-xl font-bold font-['Space_Grotesk']">Eze J.</h3>
       <span className="text-xs text-[#556] font-mono">@6figuresdev33</span>
     </div>
 
@@ -394,7 +426,7 @@ export function AboutPage() {
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-3 mb-1">
-                  <h3 className="text-xl font-bold font-['Space_Grotesk']">David Emeremgini</h3>
+                  <h3 className="text-xl font-bold font-['Space_Grotesk']">David E.</h3>
                   <span className="text-xs text-[#556] font-mono">@daviwork</span>
                 </div>
                 <p className="text-sm text-[#00D4FF] mb-3">
