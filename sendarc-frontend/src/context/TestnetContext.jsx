@@ -55,9 +55,14 @@ export function TestnetProvider({ children }) {
   }, [])
 
   const recordTransaction = useCallback(async (tx, walletAddress) => {
+    // Build the full transaction object the backend expects
+    // from and to must be present — backend returns 400 without them
     const newTx = {
       ...tx,
       id: 'TXN-ARC-' + Date.now(),
+      // Ensure from/to are always set — fall back to walletAddress if missing
+      from: (tx.from || walletAddress).toLowerCase(),
+      to: (tx.to || tx.recipient || walletAddress).toLowerCase(),
       walletAddress: walletAddress.toLowerCase(),
       createdAt: new Date().toISOString(),
     }
@@ -94,13 +99,14 @@ export function TestnetProvider({ children }) {
         body: JSON.stringify(newTx),
       })
       if (res.ok) {
-        console.log('Transaction saved to MongoDB')
+        console.log('Transaction saved to MongoDB ✅')
         setBackendOnline(true)
         // Reload fresh stats from MongoDB
         await loadTransactions(walletAddress)
       } else {
-        const errData = await res.json()
-        console.warn('MongoDB save failed:', errData)
+        const errData = await res.json().catch(() => ({}))
+        console.error('MongoDB save failed ❌ Status:', res.status, 'Error:', errData)
+        console.error('Payload that failed:', JSON.stringify(newTx, null, 2))
         setBackendOnline(false)
       }
     } catch (err) {

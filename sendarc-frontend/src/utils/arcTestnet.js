@@ -157,6 +157,8 @@ export async function sendUsdcOnChain(chainKey, { to, amount }) {
 
     return {
       hash: txHash,
+      from,
+      to,
       amount: parseFloat(amount),
       gasCost,
       gasUsed,
@@ -164,6 +166,8 @@ export async function sendUsdcOnChain(chainKey, { to, amount }) {
       settlementTime,
       status: 'confirmed',
       sourceChain: 'Arc Testnet',
+      network: 'Arc Testnet',
+      chainId: 5042002,
       simulated: false,
     }
   } else {
@@ -206,6 +210,8 @@ export async function sendUsdcOnChain(chainKey, { to, amount }) {
 
     return {
       hash: txHash,
+      from,
+      to,
       amount: parseFloat(amount),
       gasCost,
       gasUsed,
@@ -213,6 +219,8 @@ export async function sendUsdcOnChain(chainKey, { to, amount }) {
       settlementTime,
       status: 'confirmed',
       sourceChain: chain.name,
+      network: chain.name,
+      chainId: chain.id,
       simulated: false,
     }
   }
