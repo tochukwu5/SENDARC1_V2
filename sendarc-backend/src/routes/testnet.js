@@ -4,15 +4,60 @@ import WalletStats from '../models/WalletStats.js'
 
 const router = express.Router()
 
+// ─── POST /api/testnet/wallet/register ───────────────────────────────
+// Called the moment a wallet connects — creates WalletStats entry immediately
+// so the admin dashboard counts it even before any transaction is sent.
+// Safe to call multiple times — upsert with $setOnInsert means it never
+// overwrites existing stats.
+router.post('/wallet/register', async (req, res) => {
+  try {
+    const { walletAddress } = req.body
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' })
+    }
+
+    const address = walletAddress.toLowerCase().trim()
+
+    const result = await WalletStats.findOneAndUpdate(
+      { walletAddress: address },
+      {
+        $setOnInsert: {
+          walletAddress: address,
+          firstActivity: new Date(),
+          totalTransactions: 0,
+          confirmedTransactions: 0,
+          failedTransactions: 0,
+          totalVolume: 0,
+          totalGasPaid: 0,
+          avgSettlementTime: 0,
+          uniqueRecipients: 0,
+          fastestSettlement: null,
+          lastActivity: new Date(),
+        }
+      },
+      { upsert: true, new: true }
+    )
+
+    const isNew = result.totalTransactions === 0 && result.totalVolume === 0
+
+    console.log(isNew ? '✅ New wallet registered:' : '🔁 Wallet already known:', address)
+
+    res.json({
+      success: true,
+      isNew,
+      walletAddress: address,
+      message: isNew ? 'Wallet registered successfully' : 'Wallet already registered',
+    })
+  } catch (err) {
+    console.error('Wallet register error:', err)
+    res.status(500).json({ error: 'Failed to register wallet: ' + err.message })
+  }
+})
 
 // ─── POST /api/testnet/admin/fix-gas ─────────────────────────────────
 // One-time migration: fixes gas values stored with wrong decimal (6 instead of 18)
-// Old gasCost was: (gasUsed * gasPrice) / 1e6  — wrong
-// Correct gasCost is: (gasUsed * gasPrice) / 1e18
-// Ratio to fix: divide old value by 1e12
 router.post('/admin/fix-gas', async (req, res) => {
   try {
-    // Find all transactions where gasCost looks wrong (over $1 is definitely wrong)
     const badTxs = await Transaction.find({
       $expr: { $gt: [{ $toDouble: '$gasCost' }, 1] }
     })
@@ -25,7 +70,6 @@ router.post('/admin/fix-gas', async (req, res) => {
       fixed++
     }
 
-    // Recompute all WalletStats totalGasPaid from scratch
     const wallets = await WalletStats.find({})
     for (const w of wallets) {
       const agg = await Transaction.aggregate([
@@ -67,7 +111,9 @@ router.post('/admin/fix-gas', async (req, res) => {
 })
 
 // ─── POST /api/testnet/transactions ──────────────────────────────────
-// Record a new testnet transaction
+// Record a new testnet transaction.
+// Also auto-registers the wallet if not already in WalletStats —
+// this is the final safety net so no wallet ever goes unregistered.
 router.post('/transactions', async (req, res) => {
   try {
     const {
@@ -80,15 +126,40 @@ router.post('/transactions', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' })
     }
 
+    // Auto-register wallet if this is their first transaction
+    // and they haven't been registered via /wallet/register yet
+    await WalletStats.findOneAndUpdate(
+      { walletAddress: walletAddress.toLowerCase() },
+      {
+        $setOnInsert: {
+          walletAddress: walletAddress.toLowerCase(),
+          firstActivity: new Date(),
+          totalTransactions: 0,
+          confirmedTransactions: 0,
+          failedTransactions: 0,
+          totalVolume: 0,
+          totalGasPaid: 0,
+          avgSettlementTime: 0,
+          uniqueRecipients: 0,
+          fastestSettlement: null,
+        }
+      },
+      { upsert: true }
+    )
+
     // Check for duplicate
     const existing = await Transaction.findOne({ id })
-    if (existing) return res.status(409).json({ error: 'Transaction already recorded', transaction: existing })
+    if (existing) {
+      return res.status(409).json({ error: 'Transaction already recorded', transaction: existing })
+    }
 
-    // Save transaction
     const tx = await Transaction.create({
-      id, hash, from: from.toLowerCase(), to: to.toLowerCase(),
+      id,
+      hash,
+      from: from.toLowerCase(),
+      to: to.toLowerCase(),
       amount: parseFloat(amount),
-      gasCost: gasCost || '0.000000',
+      gasCost: gasCost || '0.000000000',
       gasUsed: gasUsed || 0,
       settlementTime: settlementTime || 0,
       blockNumber,
@@ -101,19 +172,20 @@ router.post('/transactions', async (req, res) => {
       walletAddress: walletAddress.toLowerCase(),
     })
 
-    // Update or create wallet stats
+    // Update wallet stats with this new transaction
     await updateWalletStats(walletAddress.toLowerCase(), tx)
 
     res.status(201).json({ success: true, transaction: tx })
   } catch (err) {
-    if (err.code === 11000) return res.status(409).json({ error: 'Duplicate transaction' })
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'Duplicate transaction' })
+    }
     console.error('Record transaction error:', err)
     res.status(500).json({ error: 'Failed to record transaction' })
   }
 })
 
 // ─── GET /api/testnet/transactions/:walletAddress ─────────────────────
-// Get all transactions + stats for a wallet
 router.get('/transactions/:walletAddress', async (req, res) => {
   try {
     const wallet = req.params.walletAddress.toLowerCase()
@@ -148,7 +220,16 @@ router.get('/transactions/:walletAddress', async (req, res) => {
         uniqueRecipients: stats.uniqueRecipients,
         lastActivity: stats.lastActivity,
         fastestSettlement: stats.fastestSettlement,
-      } : null,
+      } : {
+        totalTransactions: 0,
+        totalVolume: 0,
+        totalGasPaid: 0,
+        avgSettlementTime: 0,
+        successRate: 100,
+        uniqueRecipients: 0,
+        lastActivity: null,
+        fastestSettlement: null,
+      },
     })
   } catch (err) {
     console.error('Get transactions error:', err)
@@ -157,7 +238,6 @@ router.get('/transactions/:walletAddress', async (req, res) => {
 })
 
 // ─── GET /api/testnet/stats/:walletAddress ────────────────────────────
-// Get stats only for a wallet
 router.get('/stats/:walletAddress', async (req, res) => {
   try {
     const wallet = req.params.walletAddress.toLowerCase()
@@ -199,7 +279,6 @@ router.get('/stats/:walletAddress', async (req, res) => {
 })
 
 // ─── GET /api/testnet/leaderboard ─────────────────────────────────────
-// Get global leaderboard
 router.get('/leaderboard', async (req, res) => {
   try {
     const { limit = 50 } = req.query
@@ -216,18 +295,18 @@ router.get('/leaderboard', async (req, res) => {
       totalVolume: entry.totalVolume.toFixed(2),
       totalGasPaid: entry.totalGasPaid.toFixed(6),
       avgSettlement: entry.avgSettlementTime
-        ? `${(entry.avgSettlementTime / 1000).toFixed(2)}s`
+        ? (entry.avgSettlementTime / 1000).toFixed(2) + 's'
         : '—',
       fastestSettlement: entry.fastestSettlement
-        ? `${(entry.fastestSettlement / 1000).toFixed(3)}s`
+        ? (entry.fastestSettlement / 1000).toFixed(3) + 's'
         : '—',
       successRate: entry.totalTransactions
         ? Math.round((entry.confirmedTransactions / entry.totalTransactions) * 100)
         : 100,
       lastActivity: entry.lastActivity,
+      firstActivity: entry.firstActivity,
     }))
 
-    // Global stats
     const globalStats = await Transaction.aggregate([
       {
         $group: {
@@ -251,7 +330,7 @@ router.get('/leaderboard', async (req, res) => {
         totalVolume: (global.totalVolume || 0).toFixed(2),
         totalGasPaid: (global.totalGasPaid || 0).toFixed(6),
         avgSettlement: global.avgSettlement
-          ? `${(global.avgSettlement / 1000).toFixed(2)}s`
+          ? (global.avgSettlement / 1000).toFixed(2) + 's'
           : '—',
         activeWallets: global.uniqueWallets?.length || 0,
       }
@@ -263,11 +342,9 @@ router.get('/leaderboard', async (req, res) => {
 })
 
 // ─── GET /api/testnet/network-stats ───────────────────────────────────
-// Aggregate network-wide stats
 router.get('/network-stats', async (req, res) => {
   try {
     const [volumeByDay, gasStats, settlementStats, totalWallets] = await Promise.all([
-      // Volume per day (last 7 days)
       Transaction.aggregate([
         { $match: { status: 'confirmed', createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } },
         { $group: {
@@ -278,7 +355,6 @@ router.get('/network-stats', async (req, res) => {
         }},
         { $sort: { _id: 1 } }
       ]),
-      // Gas stats
       Transaction.aggregate([
         { $match: { status: 'confirmed' } },
         { $group: {
@@ -289,7 +365,6 @@ router.get('/network-stats', async (req, res) => {
           maxGas: { $max: { $toDouble: '$gasCost' } },
         }}
       ]),
-      // Settlement stats
       Transaction.aggregate([
         { $match: { status: 'confirmed', settlementTime: { $gt: 0 } } },
         { $group: {
@@ -315,19 +390,14 @@ router.get('/network-stats', async (req, res) => {
   }
 })
 
-// ─── Helper: update wallet stats after a new transaction ─────────────
+// ─── Helper: recompute and save wallet stats after each transaction ───
 async function updateWalletStats(walletAddress, tx) {
   try {
-    const isConfirmed = tx.status === 'confirmed'
-    const gasCostNum = parseFloat(tx.gasCost) || 0
-
-    // Get existing unique recipients
     const uniqueRecipients = await Transaction.distinct('to', {
       walletAddress,
       status: 'confirmed',
     })
 
-    // Aggregate current totals
     const agg = await Transaction.aggregate([
       { $match: { walletAddress } },
       {

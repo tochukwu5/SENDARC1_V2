@@ -37,18 +37,34 @@ function PublicLayout({ children }) {
 // it automatically loads the user's MongoDB data
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '')
 
-// Auto-register wallet in MongoDB the moment it connects
-// This ensures every wallet is tracked from first interaction — not just after first tx
+// Register wallet in MongoDB with retry logic
+// Called the moment MetaMask connects — ensures every wallet is tracked
+// in the admin dashboard from first connection, before any transactions
 async function registerWalletSilently(address) {
-  try {
-    await fetch(API_BASE + '/testnet/wallet/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ walletAddress: address.toLowerCase() }),
-    })
-  } catch {
-    // Non-fatal — wallet will still be created when first transaction is recorded
+  const addr = address.toLowerCase().trim()
+  // Try up to 3 times with 2s delay between attempts
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(API_BASE + '/testnet/wallet/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: addr }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        console.log(data.isNew
+          ? 'New wallet registered in MongoDB: ' + addr
+          : 'Wallet already registered: ' + addr
+        )
+        return true
+      }
+    } catch (err) {
+      console.warn('Wallet register attempt ' + attempt + ' failed:', err.message)
+      if (attempt < 3) await new Promise(r => setTimeout(r, 2000))
+    }
   }
+  console.warn('Wallet registration failed after 3 attempts — will register on first transaction')
+  return false
 }
 
 function WalletBridge() {
@@ -58,9 +74,9 @@ function WalletBridge() {
   useEffect(() => {
     if (account && isConnected) {
       console.log('WalletBridge: account detected, loading MongoDB data for', account)
-      // Register wallet immediately — creates WalletStats entry so admin can see it
-      // even before the user sends any transactions
+      // 1. Register wallet immediately so admin dashboard counts it right away
       registerWalletSilently(account)
+      // 2. Load transaction history from MongoDB
       loadTransactions(account)
     }
   }, [account, isConnected])
