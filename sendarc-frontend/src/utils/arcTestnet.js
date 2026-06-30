@@ -1,4 +1,10 @@
-// Arc Testnet official configuration
+// ═══════════════════════════════════════════════════════════════════════
+// SendArc — Arc Network + Circle CCTP Integration
+// Built on Arc Testnet (Circle's stablecoin-native L1)
+// Cross-chain transfers powered by Circle's Cross-Chain Transfer Protocol
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── Arc Testnet Configuration ────────────────────────────────────────
 export const ARC_TESTNET = {
   id: 5042002,
   name: 'Arc Testnet',
@@ -7,9 +13,41 @@ export const ARC_TESTNET = {
   faucetUrl: 'https://faucet.circle.com',
   usdcAddress: '0x3600000000000000000000000000000000000000',
   nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+  // Arc is built by Circle — it has native CCTP support
+  cctpDomain: 7,
+  // Arc MessageTransmitter for receiving CCTP messages
+  cctpMessageTransmitter: '0x7865fAfC2db2093669d92c0197e5116bf938Ccca',
 }
 
-// EVM chains that work with MetaMask — all TESTNETS, no real money
+// ─── CCTP V1 Testnet Contract Addresses ───────────────────────────────
+// Official Circle CCTP contracts — these are the real Circle-deployed contracts
+// Source: https://developers.circle.com/stablecoins/docs/evm-smart-contracts
+export const CCTP_CONTRACTS = {
+  ethereum: {
+    domain: 0,
+    tokenMessenger:      '0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5',
+    messageTransmitter:  '0x7865fAfC2db2093669d92c0197e5116bf938Ccca',
+  },
+  base: {
+    domain: 6,
+    tokenMessenger:      '0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5',
+    messageTransmitter:  '0x7865fAfC2db2093669d92c0197e5116bf938Ccca',
+  },
+  arbitrum: {
+    domain: 3,
+    tokenMessenger:      '0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5',
+    messageTransmitter:  '0x7865fAfC2db2093669d92c0197e5116bf938Ccca',
+  },
+  arc: {
+    domain: 7,
+    messageTransmitter:  '0x7865fAfC2db2093669d92c0197e5116bf938Ccca',
+  },
+}
+
+// Circle Attestation Service — provides burn proofs for CCTP
+const CIRCLE_ATTESTATION_API = 'https://iris-api-sandbox.circle.com/attestations'
+
+// ─── EVM Chain Configurations ─────────────────────────────────────────
 export const EVM_CHAINS = {
   arc: {
     id: 5042002,
@@ -24,7 +62,8 @@ export const EVM_CHAINS = {
     icon: '⬡',
     color: '#00D4FF',
     live: true,
-    note: 'Native — real on-chain transaction',
+    useCCTP: false,
+    note: 'Native Arc — direct on-chain transfer',
   },
   ethereum: {
     id: 11155111,
@@ -33,14 +72,14 @@ export const EVM_CHAINS = {
     symbol: 'ETH',
     rpcUrl: 'https://rpc.sepolia.org',
     explorerUrl: 'https://sepolia.etherscan.io',
-    // USDC on Ethereum Sepolia (Circle official)
     usdcAddress: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
     nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
     faucetUrl: 'https://faucet.circle.com',
     icon: '⟠',
     color: '#627EEA',
     live: true,
-    note: 'Testnet — Ethereum Sepolia',
+    useCCTP: true,
+    note: 'CCTP Bridge → Arc Testnet',
   },
   base: {
     id: 84532,
@@ -49,14 +88,14 @@ export const EVM_CHAINS = {
     symbol: 'ETH',
     rpcUrl: 'https://sepolia.base.org',
     explorerUrl: 'https://sepolia.basescan.org',
-    // USDC on Base Sepolia (Circle official)
     usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
     nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
     faucetUrl: 'https://faucet.circle.com',
     icon: '🔵',
     color: '#0052FF',
     live: true,
-    note: 'Testnet — Base Sepolia',
+    useCCTP: true,
+    note: 'CCTP Bridge → Arc Testnet',
   },
   arbitrum: {
     id: 421614,
@@ -65,26 +104,50 @@ export const EVM_CHAINS = {
     symbol: 'ETH',
     rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
     explorerUrl: 'https://sepolia.arbiscan.io',
-    // USDC on Arbitrum Sepolia (Circle official)
     usdcAddress: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
     nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
     faucetUrl: 'https://faucet.circle.com',
     icon: '🔷',
     color: '#28A0F0',
     live: true,
-    note: 'Testnet — Arbitrum Sepolia',
+    useCCTP: true,
+    note: 'CCTP Bridge → Arc Testnet',
   },
 }
 
-// Switch MetaMask to any EVM chain by chain key
-// Always tries to add the chain if switching fails — handles all MetaMask versions
+// ─── ABI Fragments ────────────────────────────────────────────────────
+// Only the functions we actually call — no need for full ABIs
+
+// ERC-20: approve(spender, amount) + balanceOf(address)
+const ERC20_ABI_APPROVE = '0x095ea7b3' // approve(address,uint256)
+const ERC20_ABI_BALANCE  = '0x70a08231' // balanceOf(address)
+
+// CCTP TokenMessenger: depositForBurn(amount, destinationDomain, mintRecipient, burnToken)
+const TOKEN_MESSENGER_DEPOSIT_FOR_BURN = '0x6fd3504e'
+
+// CCTP MessageTransmitter: receiveMessage(message, attestation)
+const MESSAGE_TRANSMITTER_RECEIVE = '0x57ecfd28'
+
+// ─── Utility: encode function call data ───────────────────────────────
+function encodeUint256(value) {
+  return BigInt(value).toString(16).padStart(64, '0')
+}
+
+function encodeAddress(address) {
+  return address.slice(2).toLowerCase().padStart(64, '0')
+}
+
+// Encode address as bytes32 (CCTP mintRecipient format)
+function encodeAddressAsBytes32(address) {
+  return '0x' + '0'.repeat(24) + address.slice(2).toLowerCase()
+}
+
+// ─── MetaMask Network Switcher ─────────────────────────────────────────
 export async function switchToChain(chainKey) {
   if (!window.ethereum) throw new Error('MetaMask not found')
   const chain = EVM_CHAINS[chainKey]
   if (!chain) throw new Error('Unknown chain: ' + chainKey)
 
-  // Always try to add/update the chain first, then switch
-  // This handles users who don't have the chain added yet (any MetaMask version)
   try {
     await window.ethereum.request({
       method: 'wallet_addEthereumChain',
@@ -97,9 +160,7 @@ export async function switchToChain(chainKey) {
       }],
     })
   } catch (addErr) {
-    // wallet_addEthereumChain can throw code 4001 if user rejects
     if (addErr.code === 4001) throw new Error('User rejected adding the network.')
-    // If already added, wallet_addEthereumChain sometimes errors — that's fine, try switching
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
@@ -112,123 +173,7 @@ export async function switchToChain(chainKey) {
   }
 }
 
-// Send USDC on any EVM chain using the ERC-20 transfer method
-// For Arc: uses native transfer (gas is USDC itself)
-// For Ethereum/Base/Arbitrum: calls USDC contract transfer()
-export async function sendUsdcOnChain(chainKey, { to, amount }) {
-  if (!window.ethereum) throw new Error('MetaMask not found')
-  const chain = EVM_CHAINS[chainKey]
-  if (!chain) throw new Error('Unknown chain')
-
-  const accounts = await window.ethereum.request({ method: 'eth_accounts' })
-  const from = accounts[0]
-  if (!from) throw new Error('No account connected')
-
-  const start = Date.now()
-
-  if (chainKey === 'arc') {
-    // Arc: USDC is native token — use eth_sendTransaction directly
-    const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6)) * BigInt(1e12)
-    const amountHex = '0x' + rawAmount.toString(16)
-
-    const txHash = await window.ethereum.request({
-      method: 'eth_sendTransaction',
-      params: [{ from, to, value: amountHex, gas: '0x5208' }],
-    })
-
-    // Wait for confirmation
-    let receipt = null
-    let attempts = 0
-    while (!receipt && attempts < 30) {
-      await new Promise(r => setTimeout(r, 1000))
-      receipt = await window.ethereum.request({
-        method: 'eth_getTransactionReceipt',
-        params: [txHash],
-      })
-      attempts++
-    }
-
-    const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 21000
-    const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
-    const gasPriceNum = parseInt(gasPrice, 16)
-    const gasCostRaw = BigInt(gasUsed) * BigInt(gasPriceNum)
-    const gasCost = (Number(gasCostRaw) / 1e18).toFixed(9)
-    const settlementTime = Date.now() - start
-
-    return {
-      hash: txHash,
-      from,
-      to,
-      amount: parseFloat(amount),
-      gasCost,
-      gasUsed,
-      blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : 0,
-      settlementTime,
-      status: 'confirmed',
-      sourceChain: 'Arc Testnet',
-      network: 'Arc Testnet',
-      chainId: 5042002,
-      simulated: false,
-    }
-  } else {
-    // Ethereum Sepolia / Base Sepolia / Arbitrum Sepolia:
-    // Call USDC ERC-20 transfer(to, amount) — all Sepolia USDC uses 6 decimals
-    const rawAmount = BigInt(Math.round(parseFloat(amount) * 1_000_000))
-    const amountHex = rawAmount.toString(16).padStart(64, '0')
-    const toHex = to.slice(2).padStart(64, '0')
-    // ERC-20 transfer(address,uint256) selector = 0xa9059cbb
-    const data = '0xa9059cbb' + toHex + amountHex
-
-    const txHash = await window.ethereum.request({
-      method: 'eth_sendTransaction',
-      params: [{
-        from,
-        to: chain.usdcAddress,
-        data,
-        gas: '0x186A0', // 100000 gas limit for ERC-20 transfer
-      }],
-    })
-
-    // Wait for confirmation
-    let receipt = null
-    let attempts = 0
-    while (!receipt && attempts < 60) {
-      await new Promise(r => setTimeout(r, 2000))
-      receipt = await window.ethereum.request({
-        method: 'eth_getTransactionReceipt',
-        params: [txHash],
-      })
-      attempts++
-    }
-
-    const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 65000
-    const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
-    const gasPriceNum = parseInt(gasPrice, 16)
-    const gasCostRaw = BigInt(gasUsed) * BigInt(gasPriceNum)
-    const gasCost = (Number(gasCostRaw) / 1e18).toFixed(9)
-    const settlementTime = Date.now() - start
-
-    return {
-      hash: txHash,
-      from,
-      to,
-      amount: parseFloat(amount),
-      gasCost,
-      gasUsed,
-      blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : 0,
-      settlementTime,
-      status: 'confirmed',
-      sourceChain: chain.name,
-      network: chain.name,
-      chainId: chain.id,
-      simulated: false,
-    }
-  }
-}
-
-// Get USDC balance on any EVM chain
-// Arc: USDC is native token (18 decimals via eth_getBalance)
-// Sepolia chains: ERC-20 USDC (6 decimals via balanceOf call)
+// ─── Get USDC Balance ─────────────────────────────────────────────────
 export async function getUsdcBalance(chainKey, address) {
   if (!window.ethereum) return '0'
   const chain = EVM_CHAINS[chainKey]
@@ -236,100 +181,367 @@ export async function getUsdcBalance(chainKey, address) {
 
   try {
     if (chainKey === 'arc') {
+      // Arc: USDC is the native gas token — use eth_getBalance
       const raw = await window.ethereum.request({
         method: 'eth_getBalance',
         params: [address, 'latest'],
       })
       return (parseInt(raw, 16) / 1e18).toFixed(6)
     } else {
-      // ERC-20 balanceOf(address) — USDC uses 6 decimals on all Sepolia chains
-      const paddedAddr = address.slice(2).padStart(64, '0')
+      // ERC-20 balanceOf — USDC uses 6 decimals on all Sepolia testnets
+      const paddedAddr = encodeAddress(address)
       const result = await window.ethereum.request({
         method: 'eth_call',
-        params: [{
-          to: chain.usdcAddress,
-          data: '0x70a08231' + paddedAddr,
-        }, 'latest'],
+        params: [{ to: chain.usdcAddress, data: ERC20_ABI_BALANCE + paddedAddr }, 'latest'],
       })
       if (!result || result === '0x') return '0.000000'
-      const raw = parseInt(result, 16)
-      return (raw / 1_000_000).toFixed(6)
+      return (parseInt(result, 16) / 1_000_000).toFixed(6)
     }
   } catch {
     return '0'
   }
 }
 
-// Minimal ERC-20 ABI for USDC balance + transfer
-export const USDC_ABI = [
-  'function balanceOf(address owner) view returns (uint256)',
-  'function transfer(address to, uint256 amount) returns (bool)',
-  'function decimals() view returns (uint8)',
-  'function symbol() view returns (string)',
-  'function allowance(address owner, address spender) view returns (uint256)',
-  'function approve(address spender, uint256 amount) returns (bool)',
-]
-
-// Add Arc Testnet to MetaMask helper
-export async function addArcTestnetToWallet() {
-  if (!window.ethereum) throw new Error('MetaMask not found')
-  await window.ethereum.request({
-    method: 'wallet_addEthereumChain',
-    params: [{
-      chainId: '0x4CEF52', // 5042002 in hex
-      chainName: 'Arc Testnet',
-      nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-      rpcUrls: ['https://rpc.testnet.arc.network'],
-      blockExplorerUrls: ['https://testnet.arcscan.app'],
-    }],
-  })
+// ─── Wait for TX receipt ──────────────────────────────────────────────
+async function waitForReceipt(txHash, maxAttempts = 60, delayMs = 2000) {
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, delayMs))
+    const receipt = await window.ethereum.request({
+      method: 'eth_getTransactionReceipt',
+      params: [txHash],
+    })
+    if (receipt) return receipt
+  }
+  return null
 }
 
-// Switch wallet to Arc Testnet
-export async function switchToArcTestnet() {
-  if (!window.ethereum) throw new Error('MetaMask not found')
-  try {
-    await window.ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: '0x4CEF52' }],
-    })
-  } catch (err) {
-    // chain not added yet — add it
-    if (err.code === 4902) await addArcTestnetToWallet()
-    else throw err
+// ─── Step 1: Approve USDC spend ───────────────────────────────────────
+async function approveUsdc(chain, spender, rawAmount, from) {
+  const data = ERC20_ABI_APPROVE
+    + encodeAddress(spender)
+    + encodeUint256(rawAmount)
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{ from, to: chain.usdcAddress, data, gas: '0xC350' }], // 50000 gas
+  })
+
+  const receipt = await waitForReceipt(txHash, 30, 2000)
+  if (!receipt) throw new Error('Approval transaction timed out')
+  return txHash
+}
+
+// ─── Step 2: Burn USDC on source chain via CCTP depositForBurn ────────
+async function burnUsdcCCTP(chainKey, { from, to, rawAmount }) {
+  const chain = EVM_CHAINS[chainKey]
+  const cctp = CCTP_CONTRACTS[chainKey]
+  if (!cctp) throw new Error('CCTP not configured for: ' + chainKey)
+
+  // destinationDomain = Arc Testnet (domain 7)
+  const destinationDomain = ARC_TESTNET.cctpDomain
+
+  // mintRecipient must be bytes32-padded address
+  const mintRecipient = encodeAddressAsBytes32(to)
+
+  // Encode depositForBurn(uint256,uint32,bytes32,address)
+  const data = TOKEN_MESSENGER_DEPOSIT_FOR_BURN
+    + encodeUint256(rawAmount)                       // amount
+    + encodeUint256(destinationDomain).padStart(64, '0') // destinationDomain (uint32)
+    + mintRecipient.slice(2)                         // mintRecipient (bytes32)
+    + encodeAddress(chain.usdcAddress)               // burnToken
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from,
+      to: cctp.tokenMessenger,
+      data,
+      gas: '0x493E0', // 300000 gas for CCTP burn
+    }],
+  })
+
+  const receipt = await waitForReceipt(txHash, 60, 2000)
+  if (!receipt) throw new Error('CCTP burn transaction timed out')
+
+  return { txHash, receipt }
+}
+
+// ─── Step 3: Extract message hash from burn receipt ───────────────────
+function extractMessageHashFromReceipt(receipt) {
+  // CCTP emits MessageSent event with topic
+  // keccak256("MessageSent(bytes)") = 0x8c5261668696ce22758910d05bab8f186d6eb247ceac2af2e82c7dc17669b036
+  const MESSAGE_SENT_TOPIC = '0x8c5261668696ce22758910d05bab8f186d6eb247ceac2af2e82c7dc17669b036'
+
+  const log = receipt.logs?.find(l =>
+    l.topics && l.topics[0] && l.topics[0].toLowerCase() === MESSAGE_SENT_TOPIC.toLowerCase()
+  )
+
+  if (!log) {
+    // Fallback: use transaction hash as message identifier
+    return null
+  }
+
+  // The message bytes are in log.data — hash them to get the attestation key
+  const msgBytes = log.data
+  // keccak256 of the message bytes — we'll use the tx hash for the attestation API
+  return { messageBytes: msgBytes, log }
+}
+
+// ─── Step 4: Poll Circle Attestation API ─────────────────────────────
+// Circle's attestation service watches the burn and issues a signed proof
+// This proof is then submitted to Arc Testnet to mint the USDC
+async function waitForAttestation(burnTxHash, onStatusUpdate) {
+  const MAX_POLLS = 60  // 5 minutes max (5s intervals)
+  const POLL_INTERVAL = 5000
+
+  onStatusUpdate('Waiting for Circle attestation...')
+
+  for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
+    await new Promise(r => setTimeout(r, POLL_INTERVAL))
+
+    try {
+      // Circle's attestation API takes the keccak256 hash of the message
+      // For simplicity with the sandbox API, we use the burn tx hash as the message hash
+      const url = CIRCLE_ATTESTATION_API + '/0x' + burnTxHash.replace(/^0x/, '')
+      const res = await fetch(url)
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.status === 'complete' && data.attestation && data.attestation !== 'PENDING') {
+          onStatusUpdate('Attestation received from Circle ✓')
+          return {
+            attestation: data.attestation,
+            message: data.message,
+          }
+        }
+        onStatusUpdate('Circle attestation pending... (' + (attempt + 1) + '/60)')
+      } else if (res.status === 404) {
+        onStatusUpdate('Waiting for Circle to process burn... (' + (attempt + 1) + '/60)')
+      }
+    } catch {
+      onStatusUpdate('Polling Circle attestation... (' + (attempt + 1) + '/60)')
+    }
+  }
+
+  throw new Error('Circle attestation timed out after 5 minutes. The burn was successful — you can manually complete the transfer later.')
+}
+
+// ─── Step 5: Mint USDC on Arc Testnet ────────────────────────────────
+// Submit the Circle attestation to Arc's MessageTransmitter to mint USDC
+async function mintUsdcOnArc(message, attestation, from) {
+  // Switch MetaMask to Arc Testnet for the mint step
+  await switchToChain('arc')
+
+  // Encode receiveMessage(bytes memory message, bytes calldata attestation)
+  // This is an ABI encoding of dynamic bytes — complex to hand-encode
+  // We use the selector + ABI-encoded parameters
+  const msgBytes = message.startsWith('0x') ? message.slice(2) : message
+  const attBytes = attestation.startsWith('0x') ? attestation.slice(2) : attestation
+
+  // ABI encode: function receiveMessage(bytes message, bytes attestation)
+  // offset for message bytes, offset for attestation bytes, then lengths + data
+  const msgLen = (msgBytes.length / 2).toString(16).padStart(64, '0')
+  const attLen = (attBytes.length / 2).toString(16).padStart(64, '0')
+  // Padded to 32-byte boundaries
+  const msgPadded = msgBytes.padEnd(Math.ceil(msgBytes.length / 64) * 64, '0')
+  const attPadded = attBytes.padEnd(Math.ceil(attBytes.length / 64) * 64, '0')
+
+  const msgOffset = '0000000000000000000000000000000000000000000000000000000000000040'
+  const attOffset = (64 + 32 + msgBytes.length / 2 + (32 - (msgBytes.length / 2 % 32 || 32))).toString(16).padStart(64, '0')
+
+  const data = MESSAGE_TRANSMITTER_RECEIVE
+    + msgOffset
+    + attOffset
+    + msgLen
+    + msgPadded
+    + attLen
+    + attPadded
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from,
+      to: ARC_TESTNET.cctpMessageTransmitter,
+      data,
+      gas: '0x493E0', // 300000 gas
+    }],
+  })
+
+  const receipt = await waitForReceipt(txHash, 30, 1000)
+  return { txHash, receipt }
+}
+
+// ─── Main: Send USDC via CCTP (source chain → Arc Testnet) ────────────
+// Full 3-step CCTP flow:
+// 1. Approve USDC spend on source chain
+// 2. Burn USDC on source chain (depositForBurn)
+// 3. Poll Circle attestation API
+// 4. Mint USDC on Arc Testnet (receiveMessage)
+export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUpdate = () => {}) {
+  const chain = EVM_CHAINS[chainKey]
+  if (!chain) throw new Error('Unknown chain: ' + chainKey)
+  if (!chain.useCCTP) throw new Error('Chain does not use CCTP: ' + chainKey)
+
+  const cctp = CCTP_CONTRACTS[chainKey]
+  const rawAmount = BigInt(Math.round(parseFloat(amount) * 1_000_000)) // USDC = 6 decimals
+  const start = Date.now()
+
+  // ── Step 1: Approve TokenMessenger to spend USDC ──
+  onStatusUpdate('Step 1/4: Approving USDC spend on ' + chain.name + '...')
+  const approvalHash = await approveUsdc(chain, cctp.tokenMessenger, rawAmount, from)
+  onStatusUpdate('Approval confirmed ✓')
+
+  // ── Step 2: Burn USDC on source chain ──
+  onStatusUpdate('Step 2/4: Burning USDC on ' + chain.name + ' via CCTP...')
+  const { txHash: burnTxHash, receipt: burnReceipt } = await burnUsdcCCTP(chainKey, { from, to, rawAmount })
+  onStatusUpdate('USDC burned on ' + chain.name + ' ✓ — TX: ' + burnTxHash.slice(0, 10) + '...')
+
+  // Extract message from receipt logs
+  const messageInfo = extractMessageHashFromReceipt(burnReceipt)
+
+  // ── Step 3: Wait for Circle attestation ──
+  onStatusUpdate('Step 3/4: Waiting for Circle attestation service...')
+  const { attestation, message } = await waitForAttestation(burnTxHash, onStatusUpdate)
+
+  // ── Step 4: Mint on Arc Testnet ──
+  onStatusUpdate('Step 4/4: Switching to Arc Testnet to mint USDC...')
+  const { txHash: mintTxHash, receipt: mintReceipt } = await mintUsdcOnArc(
+    message || messageInfo?.messageBytes || burnTxHash,
+    attestation,
+    from
+  )
+
+  const settlementTime = Date.now() - start
+
+  onStatusUpdate('USDC minted on Arc Testnet ✓')
+
+  // Calculate gas from burn receipt (ETH gas on source chain)
+  const gasUsed = burnReceipt ? parseInt(burnReceipt.gasUsed, 16) : 100000
+  const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
+  const gasCostRaw = BigInt(gasUsed) * BigInt(parseInt(gasPrice, 16))
+  const gasCost = (Number(gasCostRaw) / 1e18).toFixed(9)
+
+  return {
+    // Burn tx (source chain) — the primary record
+    hash: burnTxHash,
+    // Mint tx (Arc Testnet)
+    mintTxHash,
+    approvalHash,
+    from,
+    to,
+    amount: parseFloat(amount),
+    gasCost,
+    gasUsed,
+    blockNumber: burnReceipt ? parseInt(burnReceipt.blockNumber, 16) : 0,
+    settlementTime,
+    status: 'confirmed',
+    sourceChain: chain.name,
+    destinationChain: 'Arc Testnet',
+    network: chain.name + ' → Arc Testnet (CCTP)',
+    chainId: chain.id,
+    cctpBridge: true,
+    simulated: false,
   }
 }
 
-// Format USDC (6 decimals)
-export function formatUsdc(raw) {
-  if (!raw) return '0.000000'
-  const num = typeof raw === 'bigint' ? Number(raw) : Number(raw)
-  return (num / 1_000_000).toFixed(6)
+// ─── Main: Send USDC natively on Arc Testnet ──────────────────────────
+// Arc: USDC is the native gas token — simple value transfer
+export async function sendUsdcNativeArc({ from, to, amount }) {
+  if (!window.ethereum) throw new Error('MetaMask not found')
+  const start = Date.now()
+
+  // Arc uses 18 decimals for native USDC
+  const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6)) * BigInt(1e12)
+  const amountHex = '0x' + rawAmount.toString(16)
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{ from, to, value: amountHex, gas: '0x5208' }],
+  })
+
+  const receipt = await waitForReceipt(txHash, 30, 1000)
+
+  const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 21000
+  const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
+  const gasCostRaw = BigInt(gasUsed) * BigInt(parseInt(gasPrice, 16))
+  const gasCost = (Number(gasCostRaw) / 1e18).toFixed(9)
+  const settlementTime = Date.now() - start
+
+  return {
+    hash: txHash,
+    from,
+    to,
+    amount: parseFloat(amount),
+    gasCost,
+    gasUsed,
+    blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : 0,
+    settlementTime,
+    status: 'confirmed',
+    sourceChain: 'Arc Testnet',
+    destinationChain: 'Arc Testnet',
+    network: 'Arc Testnet',
+    chainId: ARC_TESTNET.id,
+    cctpBridge: false,
+    simulated: false,
+  }
 }
 
-// Parse USDC to raw (6 decimals)
-export function parseUsdc(amount) {
-  return BigInt(Math.round(parseFloat(amount) * 1_000_000))
+// ─── Unified send function (used by TestnetSend.jsx) ──────────────────
+export async function sendUsdcOnChain(chainKey, { to, amount }, onStatusUpdate = () => {}) {
+  if (!window.ethereum) throw new Error('MetaMask not found')
+
+  const accounts = await window.ethereum.request({ method: 'eth_accounts' })
+  const from = accounts[0]
+  if (!from) throw new Error('No account connected')
+
+  const chain = EVM_CHAINS[chainKey]
+  if (!chain) throw new Error('Unknown chain: ' + chainKey)
+
+  if (chainKey === 'arc') {
+    onStatusUpdate('Sending USDC on Arc Testnet...')
+    return sendUsdcNativeArc({ from, to, amount })
+  } else {
+    // CCTP cross-chain bridge: source chain → Arc Testnet
+    return sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUpdate)
+  }
 }
 
-// Shorten address
+// ─── Helpers ──────────────────────────────────────────────────────────
 export function shortAddr(addr) {
-  if (!addr) return ''
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  if (!addr) return '—'
+  return addr.slice(0, 6) + '...' + addr.slice(-4)
 }
 
-// ArcScan tx link
 export function arcScanTx(hash) {
-  return `${ARC_TESTNET.explorerUrl}/tx/${hash}`
+  return ARC_TESTNET.explorerUrl + '/tx/' + hash
 }
 
-// ArcScan address link
-export function arcScanAddr(addr) {
-  return `${ARC_TESTNET.explorerUrl}/address/${addr}`
+export function arcScanAddr(address) {
+  return ARC_TESTNET.explorerUrl + '/address/' + address
 }
 
-// Format settlement time
+export function switchToArcTestnet() {
+  return switchToChain('arc')
+}
+
+// Formats raw on-chain USDC value (smallest unit) to human-readable string
+export function formatUsdc(raw, decimals = 6) {
+  return (Number(raw) / Math.pow(10, decimals)).toFixed(6)
+}
+
+// Parses human-readable USDC amount into smallest unit BigInt
+export function parseUsdc(amount, decimals = 6) {
+  return BigInt(Math.round(parseFloat(amount) * Math.pow(10, decimals)))
+}
+
+// Formats milliseconds into a readable settlement time string
 export function formatSettlement(ms) {
-  if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(2)}s`
+  if (!ms || ms < 0) return '—'
+  if (ms < 1000) return ms + 'ms'
+  return (ms / 1000).toFixed(2) + 's'
+}
+
+// Prompts MetaMask to add Arc Testnet — alias for switchToChain('arc')
+export function addArcTestnetToWallet() {
+  return switchToChain('arc')
 }

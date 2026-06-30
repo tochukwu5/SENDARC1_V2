@@ -18,7 +18,7 @@ import { HowItWorks, CountriesPage, RatesPage, AboutPage, DocsPage } from './pag
 // Testnet pages
 import TestnetHub from './pages/testnet/TestnetHub'
 import TestnetSend from './pages/testnet/TestnetSend'
-import { TestnetTransactions, TestnetLeaderboard } from './pages/testnet/TestnetPages'
+import { TestnetTransactions /*, TestnetLeaderboard */ } from './pages/testnet/TestnetPages'
 import AdminPage from './pages/AdminPage'
 
 function PublicLayout({ children }) {
@@ -35,38 +35,6 @@ function PublicLayout({ children }) {
 // This component sits inside the app and watches for MetaMask auto-reconnect
 // The moment account becomes available (on any page, including after refresh)
 // it automatically loads the user's MongoDB data
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '')
-
-// Register wallet in MongoDB with retry logic
-// Called the moment MetaMask connects — ensures every wallet is tracked
-// in the admin dashboard from first connection, before any transactions
-async function registerWalletSilently(address) {
-  const addr = address.toLowerCase().trim()
-  // Try up to 3 times with 2s delay between attempts
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await fetch(API_BASE + '/testnet/wallet/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: addr }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        console.log(data.isNew
-          ? 'New wallet registered in MongoDB: ' + addr
-          : 'Wallet already registered: ' + addr
-        )
-        return true
-      }
-    } catch (err) {
-      console.warn('Wallet register attempt ' + attempt + ' failed:', err.message)
-      if (attempt < 3) await new Promise(r => setTimeout(r, 2000))
-    }
-  }
-  console.warn('Wallet registration failed after 3 attempts — will register on first transaction')
-  return false
-}
-
 function WalletBridge() {
   const { account, isConnected } = useArcTestnet()
   const { loadTransactions } = useTestnet()
@@ -74,9 +42,6 @@ function WalletBridge() {
   useEffect(() => {
     if (account && isConnected) {
       console.log('WalletBridge: account detected, loading MongoDB data for', account)
-      // 1. Register wallet immediately so admin dashboard counts it right away
-      registerWalletSilently(account)
-      // 2. Load transaction history from MongoDB
       loadTransactions(account)
     }
   }, [account, isConnected])
@@ -115,7 +80,8 @@ export default function App() {
             <Route path="/testnet" element={<TestnetHub />} />
             <Route path="/testnet/send" element={<TestnetSend />} />
             <Route path="/testnet/transactions" element={<TestnetTransactions />} />
-            <Route path="/testnet/leaderboard" element={<TestnetLeaderboard />} />
+            {/* Leaderboard — commented out for now, uncomment when ready to launch it */}
+            {/* <Route path="/testnet/leaderboard" element={<TestnetLeaderboard />} /> */}
 
             {/* Admin (password protected) */}
             <Route path="/admin" element={<AdminPage />} />

@@ -186,10 +186,11 @@ export default function TestnetHub() {
                 icon: '📊', title: 'View Transactions', desc: 'Full history of all your testnet transactions with on-chain hashes, gas costs, and settlement times.',
                 link: '/testnet/transactions', label: 'View History →', available: true,
               },
-              {
-                icon: '🏆', title: 'Leaderboard', desc: 'See the top testnet participants ranked by volume, transactions, and activity. Compete for the top spot.',
-                link: '/testnet/leaderboard', label: 'View Rankings →', available: true,
-              },
+              // Leaderboard — commented out for now, uncomment when ready to launch it
+              // {
+              //   icon: '🏆', title: 'Leaderboard', desc: 'See the top testnet participants ranked by volume, transactions, and activity. Compete for the top spot.',
+              //   link: '/testnet/leaderboard', label: 'View Rankings →', available: true,
+              // },
             ].map(a => (
               <Card key={a.title} className="p-6 hover:border-[#00D4FF]/40 transition-all">
                 <div className="text-3xl mb-4">{a.icon}</div>
