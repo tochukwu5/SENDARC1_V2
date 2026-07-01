@@ -456,9 +456,14 @@ export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUp
   }
 }
 
-// ─── Send via SendArcRouter contract ─────────────────────────────────
-// Routes USDC through the SendArcRouter contract so Arc Network
-// attributes all volume to the SendArc platform on the block explorer.
+// ─── Send via SendArcRouter contract (two-step) ──────────────────────
+// Step 1: Call recordTransfer() on the contract — gives Arc attribution
+// Step 2: Send USDC natively to recipient — the actual transfer
+//
+// This two-step design is reliable on Arc because we avoid the
+// msg.value forwarding issue with Arc's native USDC token.
+// Arc block explorer records both transactions, with SendArcRouter
+// as the interacted contract on Step 1.
 export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
   if (!window.ethereum) throw new Error('MetaMask not found')
   if (!SENDARC_ROUTER.address) throw new Error('SendArcRouter not deployed yet')
@@ -468,49 +473,69 @@ export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
   // Arc native USDC: 18 decimals
   const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6)) * BigInt(1e12)
   const amountHex = '0x' + rawAmount.toString(16)
+  const amountHexNoValue = '0x' + rawAmount.toString(16)
 
-  // Properly ABI-encode send(address recipient)
-  // Function selector for send(address) = keccak256("send(address)")[0:4]
-  // = 0x9a8a0592
-  // ABI encoding of address: 12 zero bytes padding + 20 byte address
-  const selector = '9a8a0592'
+  // ── Step 1: Record transfer on SendArcRouter ──────────────────────
+  // ABI encode: recordTransfer(address recipient, uint256 amount)
+  // selector = keccak256("recordTransfer(address,uint256)")[0:4] = 0x3e9a35dc
+  const selector = '3e9a35dc'
   const paddedRecipient = to.replace('0x', '').toLowerCase().padStart(64, '0')
-  const data = '0x' + selector + paddedRecipient
+  const paddedAmount = rawAmount.toString(16).padStart(64, '0')
+  const recordData = '0x' + selector + paddedRecipient + paddedAmount
 
-  // Call router.send{value: amount}(recipient)
-  // The USDC is sent as value (native token on Arc)
-  const txHash = await window.ethereum.request({
+  const recordTxHash = await window.ethereum.request({
     method: 'eth_sendTransaction',
     params: [{
       from,
       to: SENDARC_ROUTER.address,
-      value: amountHex,
-      data,
-      gas: '0x186A0', // 100000 gas — enough for the forward + event
+      value: '0x0', // no value — just recording
+      data: recordData,
+      gas: '0xC350', // 50000 gas — enough for event + storage
     }],
   })
 
-  const receipt = await waitForReceipt(txHash, 30, 1000)
-
-  if (receipt && receipt.status === '0x0') {
-    throw new Error('SendArcRouter transaction reverted on-chain. Check balance and recipient address.')
+  // Wait for record tx to confirm
+  const recordReceipt = await waitForReceipt(recordTxHash, 30, 1000)
+  if (recordReceipt && recordReceipt.status === '0x0') {
+    throw new Error('SendArcRouter record failed. Check your wallet is connected to Arc Testnet.')
   }
 
-  const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 21000
+  // ── Step 2: Send actual USDC to recipient ────────────────────────
+  // Simple native transfer — USDC is native token on Arc
+  const sendTxHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from,
+      to,
+      value: amountHex,
+      gas: '0x5208', // 21000 — simple native transfer
+    }],
+  })
+
+  const sendReceipt = await waitForReceipt(sendTxHash, 30, 1000)
+  if (sendReceipt && sendReceipt.status === '0x0') {
+    throw new Error('USDC transfer failed. Check your balance.')
+  }
+
+  const gasUsed = (recordReceipt ? parseInt(recordReceipt.gasUsed, 16) : 0)
+                + (sendReceipt ? parseInt(sendReceipt.gasUsed, 16) : 21000)
   const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
   const gasCostRaw = BigInt(gasUsed) * BigInt(parseInt(gasPrice, 16))
   const gasCost = (Number(gasCostRaw) / 1e18).toFixed(9)
   const settlementTime = Date.now() - start
 
   return {
-    hash: txHash,
+    // Primary hash is the contract interaction (Step 1) for attribution
+    hash: recordTxHash,
+    // Secondary hash is the actual USDC transfer (Step 2)
+    transferTxHash: sendTxHash,
     from,
     to,
     routerAddress: SENDARC_ROUTER.address,
     amount: parseFloat(amount),
     gasCost,
     gasUsed,
-    blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : 0,
+    blockNumber: sendReceipt ? parseInt(sendReceipt.blockNumber, 16) : 0,
     settlementTime,
     status: 'confirmed',
     sourceChain: 'Arc Testnet',
