@@ -457,8 +457,8 @@ export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUp
 }
 
 // ─── Send via SendArcRouter contract ─────────────────────────────────
-// This is the preferred path when the router is deployed.
-// All volume is attributed to the SendArcRouter contract on Arc's explorer.
+// Routes USDC through the SendArcRouter contract so Arc Network
+// attributes all volume to the SendArc platform on the block explorer.
 export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
   if (!window.ethereum) throw new Error('MetaMask not found')
   if (!SENDARC_ROUTER.address) throw new Error('SendArcRouter not deployed yet')
@@ -469,11 +469,16 @@ export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
   const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6)) * BigInt(1e12)
   const amountHex = '0x' + rawAmount.toString(16)
 
-  // Encode send(address) call — selector 0x9a8a0592 + padded recipient
-  const recipientPadded = to.slice(2).toLowerCase().padStart(64, '0')
-  const data = SENDARC_ROUTER.sendSelector + recipientPadded
+  // Properly ABI-encode send(address recipient)
+  // Function selector for send(address) = keccak256("send(address)")[0:4]
+  // = 0x9a8a0592
+  // ABI encoding of address: 12 zero bytes padding + 20 byte address
+  const selector = '9a8a0592'
+  const paddedRecipient = to.replace('0x', '').toLowerCase().padStart(64, '0')
+  const data = '0x' + selector + paddedRecipient
 
   // Call router.send{value: amount}(recipient)
+  // The USDC is sent as value (native token on Arc)
   const txHash = await window.ethereum.request({
     method: 'eth_sendTransaction',
     params: [{
@@ -481,11 +486,15 @@ export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
       to: SENDARC_ROUTER.address,
       value: amountHex,
       data,
-      gas: '0xC350', // 50000 gas — enough for forwarding
+      gas: '0x186A0', // 100000 gas — enough for the forward + event
     }],
   })
 
   const receipt = await waitForReceipt(txHash, 30, 1000)
+
+  if (receipt && receipt.status === '0x0') {
+    throw new Error('SendArcRouter transaction reverted on-chain. Check balance and recipient address.')
+  }
 
   const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 21000
   const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
