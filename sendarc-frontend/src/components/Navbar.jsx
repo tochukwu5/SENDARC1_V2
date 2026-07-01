@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { useArcTestnet } from '../hooks/useArcTestnet'
 
 export default function Navbar() {
   const { wallet, disconnect } = useWallet()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const links = [
@@ -39,6 +40,17 @@ export default function Navbar() {
             </Link>
           ))}
 
+          {/* Create USD Account — disabled, shows "Coming Soon" tooltip on hover.
+              Not a real route, not clickable. Will be enabled once this feature ships. */}
+          <div className="relative group">
+            <span className="text-sm text-[#556] cursor-not-allowed select-none">
+              Create USD Account
+            </span>
+            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 rounded-lg bg-[#1c232e] border border-[#2a3340] text-[10px] text-[#00D4FF] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 shadow-lg">
+              🔒 Coming Soon
+            </div>
+          </div>
+
           {/* Testnet badge — always visible */}
           <Link to="/testnet"
             className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all font-['Space_Grotesk'] ${
@@ -68,8 +80,8 @@ export default function Navbar() {
               </Link>
               <button onClick={() => {
                   arcDisconnect()
-                  disconnect() // from useWallet
-               navigate('/')
+                  disconnect()
+                  navigate('/')
               }} className="text-xs text-[#8892a0] hover:text-red-400 transition-colors">
                 Disconnect
               </button>
@@ -77,7 +89,7 @@ export default function Navbar() {
           ) : (
             <Link to="/connect"
               className="bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold text-sm px-5 py-2 rounded-lg hover:opacity-90 transition-all hover:-translate-y-0.5">
-              Get Started
+              Connect Wallet
             </Link>
           )}
         </div>
@@ -105,13 +117,20 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+
+          {/* Create USD Account — disabled on mobile too */}
+          <span className="flex items-center gap-1.5 text-sm text-[#556] cursor-not-allowed">
+            Create USD Account
+            <span className="text-[9px] border border-[#2a3340] text-[#00D4FF] px-1.5 py-0.5 rounded-full">Soon</span>
+          </span>
+
           <Link to="/testnet" onClick={() => setMenuOpen(false)}
             className="flex items-center gap-1.5 text-sm text-[#00D4FF] font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00D4FF] animate-pulse" />
             Testnet
           </Link>
           <Link to="/connect" className="bg-[#00D4FF] text-[#0D1117] font-bold text-sm px-5 py-2 rounded-lg text-center" onClick={() => setMenuOpen(false)}>
-            Get Started
+            Connect Wallet
           </Link>
         </div>
       )}

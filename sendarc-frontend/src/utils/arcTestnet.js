@@ -19,6 +19,18 @@ export const ARC_TESTNET = {
   cctpMessageTransmitter: '0x7865fAfC2db2093669d92c0197e5116bf938Ccca',
 }
 
+
+// ─── SendArcRouter Contract ───────────────────────────────────────────
+// Deployed on Arc Testnet — all sends route through this contract so
+// Arc Network attributes volume to SendArc (not anonymous wallet-to-wallet)
+// Set VITE_ROUTER_ADDRESS in your Vercel env after deploying the contract
+export const SENDARC_ROUTER = {
+  address: import.meta.env.VITE_ROUTER_ADDRESS || null,
+  // send(address payable recipient) payable
+  // ABI selector: keccak256("send(address)") = 0x9a8a0592
+  sendSelector: '0x9a8a0592',
+}
+
 // ─── CCTP V1 Testnet Contract Addresses ───────────────────────────────
 // Official Circle CCTP contracts — these are the real Circle-deployed contracts
 // Source: https://developers.circle.com/stablecoins/docs/evm-smart-contracts
@@ -444,6 +456,64 @@ export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUp
   }
 }
 
+// ─── Send via SendArcRouter contract ─────────────────────────────────
+// This is the preferred path when the router is deployed.
+// All volume is attributed to the SendArcRouter contract on Arc's explorer.
+export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
+  if (!window.ethereum) throw new Error('MetaMask not found')
+  if (!SENDARC_ROUTER.address) throw new Error('SendArcRouter not deployed yet')
+
+  const start = Date.now()
+
+  // Arc native USDC: 18 decimals
+  const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6)) * BigInt(1e12)
+  const amountHex = '0x' + rawAmount.toString(16)
+
+  // Encode send(address) call — selector 0x9a8a0592 + padded recipient
+  const recipientPadded = to.slice(2).toLowerCase().padStart(64, '0')
+  const data = SENDARC_ROUTER.sendSelector + recipientPadded
+
+  // Call router.send{value: amount}(recipient)
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from,
+      to: SENDARC_ROUTER.address,
+      value: amountHex,
+      data,
+      gas: '0xC350', // 50000 gas — enough for forwarding
+    }],
+  })
+
+  const receipt = await waitForReceipt(txHash, 30, 1000)
+
+  const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 21000
+  const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
+  const gasCostRaw = BigInt(gasUsed) * BigInt(parseInt(gasPrice, 16))
+  const gasCost = (Number(gasCostRaw) / 1e18).toFixed(9)
+  const settlementTime = Date.now() - start
+
+  return {
+    hash: txHash,
+    from,
+    to,
+    routerAddress: SENDARC_ROUTER.address,
+    amount: parseFloat(amount),
+    gasCost,
+    gasUsed,
+    blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : 0,
+    settlementTime,
+    status: 'confirmed',
+    sourceChain: 'Arc Testnet',
+    destinationChain: 'Arc Testnet',
+    network: 'Arc Testnet (via SendArcRouter)',
+    chainId: ARC_TESTNET.id,
+    cctpBridge: false,
+    routedThroughContract: true,
+    simulated: false,
+  }
+}
+
 // ─── Main: Send USDC natively on Arc Testnet ──────────────────────────
 // Arc: USDC is the native gas token — simple value transfer
 export async function sendUsdcNativeArc({ from, to, amount }) {
@@ -498,6 +568,12 @@ export async function sendUsdcOnChain(chainKey, { to, amount }, onStatusUpdate =
   if (!chain) throw new Error('Unknown chain: ' + chainKey)
 
   if (chainKey === 'arc') {
+    // Route through SendArcRouter if deployed — this is what makes
+    // Arc Network attribute the volume to SendArc on the block explorer
+    if (SENDARC_ROUTER.address) {
+      onStatusUpdate('Routing through SendArcRouter...')
+      return sendUsdcViaSendArcRouter({ from, to, amount })
+    }
     onStatusUpdate('Sending USDC on Arc Testnet...')
     return sendUsdcNativeArc({ from, to, amount })
   } else {
