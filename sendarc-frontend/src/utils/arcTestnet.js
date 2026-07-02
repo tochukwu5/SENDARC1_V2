@@ -478,7 +478,7 @@ export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
   // ── Step 1: Record transfer on SendArcRouter ──────────────────────
   // ABI encode: recordTransfer(address recipient, uint256 amount)
   // selector = keccak256("recordTransfer(address,uint256)")[0:4] = 0x3e9a35dc
-  const selector = '3e9a35dc'
+  const selector = '73ac83ef'
   const paddedRecipient = to.replace('0x', '').toLowerCase().padStart(64, '0')
   const paddedAmount = rawAmount.toString(16).padStart(64, '0')
   const recordData = '0x' + selector + paddedRecipient + paddedAmount
