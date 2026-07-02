@@ -344,7 +344,7 @@ async function mintUsdcOnArc(message, attestation, from) {
   // Switch MetaMask to Arc Testnet for the mint step
   await switchToChain('arc')
 
-  // Encode receiveMessage(bytes memory message, bytes calldata attestation)
+  // Encode receiveMessage(bytes memory message, bytes attestation)
   // This is an ABI encoding of dynamic bytes — complex to hand-encode
   // We use the selector + ABI-encoded parameters
   const msgBytes = message.startsWith('0x') ? message.slice(2) : message
@@ -477,7 +477,7 @@ export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
 
   // ── Step 1: Record transfer on SendArcRouter ──────────────────────
   // ABI encode: recordTransfer(address recipient, uint256 amount)
-  // selector = keccak256("recordTransfer(address,uint256)")[0:4] = 0x3e9a35dc
+  // selector = keccak256("recordTransfer(address,uint256)")[0:4] = 0x73ac83ef
   const selector = '73ac83ef'
   const paddedRecipient = to.replace('0x', '').toLowerCase().padStart(64, '0')
   const paddedAmount = rawAmount.toString(16).padStart(64, '0')
@@ -490,7 +490,7 @@ export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
       to: SENDARC_ROUTER.address,
       value: '0x0', // no value — just recording
       data: recordData,
-      gas: '0xC350', // 50000 gas — enough for event + storage
+      gas: '0x186A0', // 100000 gas — covers cold SSTORE on first writes + event + storage
     }],
   })
 
