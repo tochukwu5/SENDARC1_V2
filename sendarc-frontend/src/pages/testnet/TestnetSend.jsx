@@ -244,9 +244,9 @@ export default function TestnetSend() {
           <Card className="p-6">
 
             {/* Not connected */}
-            {!isConnected && view === 'form' && (
+            {!isConnected && (
               <div className="text-center py-4">
-                <div className="text-3xl mb-3">🦊</div>
+                {/* <div className="text-3xl mb-3">🦊</div> */}
                 {!hasMetaMask ? (
                   <>
                     <h3 className="font-bold font-['Space_Grotesk'] mb-1.5">MetaMask required</h3>
@@ -258,20 +258,20 @@ export default function TestnetSend() {
                   </>
                 ) : (
                   <>
-                    <h3 className="font-bold font-['Space_Grotesk'] mb-1.5">Connect your wallet</h3>
+                    {/* <h3 className="font-bold font-['Space_Grotesk'] mb-1.5">Connect your wallet</h3>
                     <p className="text-[#8892a0] text-sm mb-4">We'll switch networks for you automatically.</p>
                     <button onClick={connect} disabled={isLoading}
                       className="bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold px-8 py-3 rounded-xl hover:opacity-90 disabled:opacity-50">
                       {isLoading ? 'Connecting…' : 'Connect Wallet'}
                     </button>
-                    {error && <p className="mt-3 text-red-400 text-xs">{error}</p>}
+                    {error && <p className="mt-3 text-red-400 text-xs">{error}</p>} */}
                   </>
                 )}
               </div>
             )}
 
             {/* ── SEND FORM ─────────────────────────────────────────── */}
-            {isConnected && view === 'form' && activeTab === 'send' && (
+            { view === 'form' && activeTab === 'send' && (
               <div>
                 <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">YOU SEND</p>
                 <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
@@ -282,7 +282,7 @@ export default function TestnetSend() {
                     >
                       <TokenIcon symbol={sendTokens.find(t => t.symbol === selectedToken)?.icon} color={sendTokens.find(t => t.symbol === selectedToken)?.color} size={22} />
                       {selectedToken}
-                      <span className="text-[#8892a0] text-xs">⌄</span>
+                      <span className="text-[#8892a0] text-xl mb-4">⌄</span>
                     </button>
                     <span className="text-[10px] text-[#8892a0]">
                       Balance: {tokenSupported ? activeBalance : '0.000000'} {selectedToken}
