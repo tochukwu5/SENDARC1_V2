@@ -4,7 +4,8 @@ import { useArcTestnet } from '../../hooks/useArcTestnet'
 import { useTestnet } from '../../context/TestnetContext'
 import {
   ARC_TESTNET, EVM_CHAINS, shortAddr, arcScanTx,
-  switchToChain, sendUsdcOnChain, getUsdcBalance
+  switchToChain, sendUsdcOnChain, getUsdcBalance,
+  getEurcBalance, sendEurcOnArc, getCirbtcBalance, sendCirbtcOnArc
 } from '../../utils/arcTestnet'
 import { Card, LoadingSpinner } from '../../components/UI'
 import Navbar from '../../components/Navbar'
@@ -52,6 +53,8 @@ export default function TestnetSend() {
   const [sourceChainKey, setSourceChainKey] = useState('arc')
   const [bridgeToKey, setBridgeToKey] = useState('arc')
   const [chainBalance, setChainBalance] = useState(arcBalance)
+  const [eurcBalance, setEurcBalance] = useState('0.000000')
+  const [cirbtcBalance, setCirbtcBalance] = useState('0.00000000')
   const [switchingChain, setSwitchingChain] = useState(false)
   const [switchError, setSwitchError] = useState(null)
 
@@ -78,15 +81,15 @@ export default function TestnetSend() {
 
   const selectedChain = EVM_CHAINS[sourceChainKey]
   const isCCTP = selectedChain && selectedChain.useCCTP
-  const tokenSupported = selectedToken === 'USDC'
+  const tokenSupported = selectedToken === 'USDC' || selectedToken === 'EURC' || selectedToken === 'cirBTC'
+  const activeBalance = selectedToken === 'EURC' ? eurcBalance : selectedToken === 'cirBTC' ? cirbtcBalance : chainBalance
 
   const fromNetworks = ALL_NETWORKS.map(n => ({ ...n, enabled: FROM_ENABLED.includes(n.key) }))
   const toNetworks = ALL_NETWORKS.map(n => ({ ...n, enabled: TO_ENABLED.includes(n.key) }))
   const sendTokens = [
-    { symbol: 'USDC',   name: 'USD Coin',       icon: '$', color: '#2775CA', balance: chainBalance,   enabled: true },
-    { symbol: 'EURC',   name: 'Euro Coin',      icon: '€', color: '#1F6FD1', balance: '0.000000', enabled: false },
-    { symbol: 'USDT',   name: 'Tether USD',     icon: '₮', color: '#26A17B', balance: '0.000000', enabled: false },
-    { symbol: 'cirBTC', name: 'Circle Bitcoin', icon: '₿', color: '#8256E9', balance: '0.000000', enabled: false },
+    { symbol: 'USDC',   name: 'USD Coin',       icon: '$', color: '#2775CA', balance: chainBalance,  enabled: true },
+    { symbol: 'EURC',   name: 'Euro Coin',      icon: '€', color: '#1F6FD1', balance: eurcBalance,   enabled: true },
+    { symbol: 'cirBTC', name: 'Circle Bitcoin', icon: '₿', color: '#8256E9', balance: cirbtcBalance, enabled: true },
   ]
 
   const handleChainSelect = async (chainKey) => {
@@ -118,6 +121,12 @@ export default function TestnetSend() {
     getUsdcBalance(sourceChainKey, account).then(setChainBalance)
   }, [sourceChainKey, account, arcBalance])
 
+  useEffect(() => {
+    if (!account) return
+    getEurcBalance(account).then(setEurcBalance)
+    getCirbtcBalance(account).then(setCirbtcBalance)
+  }, [account, arcBalance])
+
   // Default the recipient to the connected wallet until the person expands
   // "Add receiving wallet" and picks someone else — mirrors the reference flow.
   useEffect(() => {
@@ -146,10 +155,16 @@ export default function TestnetSend() {
     setCctpActiveStep(-1)
     setCctpDoneSteps([])
     try {
-      const result = await sendUsdcOnChain(sourceChainKey, { to: recipient, amount }, handleStatusUpdate)
+      const result = activeTab === 'send' && selectedToken === 'EURC'
+        ? await sendEurcOnArc({ from: account, to: recipient, amount })
+        : activeTab === 'send' && selectedToken === 'cirBTC'
+        ? await sendCirbtcOnArc({ from: account, to: recipient, amount })
+        : await sendUsdcOnChain(sourceChainKey, { to: recipient, amount }, handleStatusUpdate)
       await recordTransaction(result, account)
       await loadTransactions(account)
-      if (sourceChainKey === 'arc') refreshBalance()
+      if (selectedToken === 'EURC') setEurcBalance(await getEurcBalance(account))
+      else if (selectedToken === 'cirBTC') setCirbtcBalance(await getCirbtcBalance(account))
+      else if (sourceChainKey === 'arc') refreshBalance()
       else setChainBalance(await getUsdcBalance(sourceChainKey, account))
       setTxResult(result)
       setView('success')
@@ -173,11 +188,12 @@ export default function TestnetSend() {
     resetForm()
   }
 
-  const afterSend = amount && parseFloat(chainBalance)
-    ? (parseFloat(chainBalance) - parseFloat(amount)).toFixed(6)
+  const validationBalance = activeTab === 'send' ? activeBalance : chainBalance
+  const afterSend = amount && parseFloat(validationBalance)
+    ? (parseFloat(validationBalance) - parseFloat(amount)).toFixed(6)
     : null
   const isValidAddress = recipient && recipient.startsWith('0x') && recipient.length === 42
-  const isValidAmount = amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(chainBalance)
+  const isValidAmount = amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(validationBalance)
   const canReview = isValidAddress && isValidAmount && !switchingChain && tokenSupported
 
   const explorerTxUrl = (hash) => selectedChain ? selectedChain.explorerUrl + '/tx/' + hash : arcScanTx(hash)
@@ -269,7 +285,7 @@ export default function TestnetSend() {
                       <span className="text-[#8892a0] text-xs">⌄</span>
                     </button>
                     <span className="text-[10px] text-[#8892a0]">
-                      Balance: {tokenSupported ? chainBalance : '0.000000'} {selectedToken}
+                      Balance: {tokenSupported ? activeBalance : '0.000000'} {selectedToken}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -289,7 +305,7 @@ export default function TestnetSend() {
                     <span className="text-sm text-white bg-[#1e2530] px-3 py-1 rounded-md">{selectedToken}</span>
                     {tokenSupported && (
                       <button
-                        onClick={() => setAmount(Math.max(0, parseFloat(chainBalance) - 0.001).toFixed(6))}
+                        onClick={() => setAmount(Math.max(0, parseFloat(activeBalance) - 0.001).toFixed(6))}
                         className="text-[10px] text-[#00D4FF] hover:underline"
                       >
                         Max
@@ -365,7 +381,7 @@ export default function TestnetSend() {
                 {afterSend !== null && tokenSupported && (
                   <div className="flex justify-between text-xs mt-3 text-[#8892a0]">
                     <span>After send</span>
-                    <span className={parseFloat(afterSend) < 0 ? 'text-red-400' : 'text-white'}>{afterSend} USDC</span>
+                    <span className={parseFloat(afterSend) < 0 ? 'text-red-400' : 'text-white'}>{afterSend} {selectedToken}</span>
                   </div>
                 )}
 
@@ -543,7 +559,7 @@ export default function TestnetSend() {
                     { l: 'Route',   v: isCCTP ? selectedChain?.name + ' → Arc (CCTP)' : 'Arc Testnet (direct)' },
                     { l: 'From',    v: shortAddr(account), mono: true },
                     { l: 'To',      v: shortAddr(recipient), mono: true },
-                    { l: 'Amount',  v: amount + ' USDC' },
+                    { l: 'Amount',  v: amount + ' ' + (activeTab === 'send' ? selectedToken : 'USDC') },
                     { l: 'Est. Time', v: isCCTP ? '2–5 minutes' : '< 1 second', accent: true },
                     { l: 'Prompts', v: isCCTP ? '3 (approve, burn, mint)' : '1 (sign)' },
                   ].map(r => (
@@ -619,7 +635,7 @@ export default function TestnetSend() {
 
                 <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl p-4 text-left mb-5 space-y-2.5">
                   {[
-                    { l: 'Amount', v: txResult.amount + ' USDC' },
+                    { l: 'Amount', v: txResult.amount + ' ' + (txResult.token || 'USDC') },
                     { l: 'Gas Paid', v: txResult.gasCost },
                     { l: 'Status', v: 'Confirmed', green: true },
                   ].map(r => (
@@ -660,7 +676,7 @@ export default function TestnetSend() {
                 <div className="flex gap-3">
                   <button onClick={resetForm}
                     className="flex-1 bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold py-2.5 rounded-xl text-sm hover:opacity-90">
-                    Send Another →
+                    {txResult.cctpBridge ? 'Bridge Another →' : 'Send Another →'}
                   </button>
                   <Link to="/testnet/transactions"
                     className="flex-1 border border-[#1e2530] text-[#8892a0] py-2.5 rounded-xl text-sm hover:border-[#00D4FF] hover:text-white transition-all text-center">

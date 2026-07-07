@@ -3,6 +3,8 @@
 
 export const SENDARC_ROUTER = {
   address: import.meta.env.VITE_ROUTER_ADDRESS || null,
+  // recordTransfer(address,uint256) — verified via `cast sig`
+  recordSelector: '73ac83ef',
 }
 
 export const ARC_TESTNET = {
@@ -13,7 +15,13 @@ export const ARC_TESTNET = {
   faucetUrl: 'https://faucet.circle.com',
   usdcAddress: '0x3600000000000000000000000000000000000000',
   nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-  cctpDomain: 7,
+  // Confirmed via https://docs.arc.io/arc/references/contract-addresses
+  cctpDomain: 26,
+  eurcAddress: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
+  eurcDecimals: 6,
+  // Verified via developers.circle.com/assets/cirbtc-contract-addresses
+  // and circlefin/arc-defi-lend-borrow on GitHub — same address both places.
+  cirbtcAddress: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
 }
 
 export const EVM_CHAINS = {
@@ -122,6 +130,46 @@ export async function getUsdcBalance(chainKey, address) {
       return (parseInt(result, 16) / 1_000_000).toFixed(6)
     }
   } catch { return '0' }
+}
+
+// Generic ERC-20 balanceOf(address) reader — used for EURC and any future
+// standard ERC-20 token on Arc (not the native-USDC special case above).
+export async function getErc20Balance(tokenAddress, address, decimals = 6) {
+  if (!window.ethereum) return '0.000000'
+  try {
+    const paddedAddr = address.slice(2).toLowerCase().padStart(64, '0')
+    const result = await window.ethereum.request({
+      method: 'eth_call',
+      params: [{ to: tokenAddress, data: '0x70a08231' + paddedAddr }, 'latest'],
+    })
+    if (!result || result === '0x') return '0.000000'
+    return (parseInt(result, 16) / Math.pow(10, decimals)).toFixed(6)
+  } catch { return '0.000000' }
+}
+
+export function getEurcBalance(address) {
+  return getErc20Balance(ARC_TESTNET.eurcAddress, address, ARC_TESTNET.eurcDecimals)
+}
+
+// Reads decimals() directly from the token contract instead of assuming a
+// value — cirBTC likely follows Bitcoin's 8-decimal convention but that's
+// a guess, not a fact, so we verify on-chain and cache the result.
+const decimalsCache = {}
+export async function getTokenDecimals(tokenAddress) {
+  if (decimalsCache[tokenAddress] !== undefined) return decimalsCache[tokenAddress]
+  const result = await window.ethereum.request({
+    method: 'eth_call',
+    params: [{ to: tokenAddress, data: '0x313ce567' }, 'latest'], // decimals()
+  })
+  const decimals = result && result !== '0x' ? parseInt(result, 16) : 18
+  decimalsCache[tokenAddress] = decimals
+  return decimals
+}
+
+export async function getCirbtcBalance(address) {
+  if (!window.ethereum) return '0.00000000'
+  const decimals = await getTokenDecimals(ARC_TESTNET.cirbtcAddress)
+  return getErc20Balance(ARC_TESTNET.cirbtcAddress, address, decimals)
 }
 
 async function waitForReceipt(txHash, maxAttempts = 60, delayMs = 2000) {
@@ -241,6 +289,158 @@ export async function sendUsdcNativeArc({ from, to, amount }) {
   }
 }
 
+// Routes the native Arc send through SendArcRouter.recordTransfer() first —
+// this is what makes Arc's block explorer attribute the volume to SendArc
+// instead of showing an anonymous wallet-to-wallet transfer.
+export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
+  if (!window.ethereum) throw new Error('MetaMask not found')
+  if (!SENDARC_ROUTER.address) throw new Error('SendArcRouter not deployed yet')
+
+  const start = Date.now()
+  const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6)) * BigInt(1e12)
+  const amountHex = '0x' + rawAmount.toString(16)
+
+  const paddedRecipient = to.replace('0x', '').toLowerCase().padStart(64, '0')
+  const paddedAmount = rawAmount.toString(16).padStart(64, '0')
+  const recordData = '0x' + SENDARC_ROUTER.recordSelector + paddedRecipient + paddedAmount
+
+  const recordTxHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from,
+      to: SENDARC_ROUTER.address,
+      value: '0x0',
+      data: recordData,
+      gas: '0x186A0', // 100000 — covers cold SSTORE on first writes + event
+    }],
+  })
+
+  const recordReceipt = await waitForReceipt(recordTxHash, 30, 1000)
+  if (recordReceipt && recordReceipt.status === '0x0') {
+    throw new Error('SendArcRouter record failed. Check your wallet is connected to Arc Testnet.')
+  }
+
+  const sendTxHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{ from, to, value: amountHex, gas: '0x5208' }],
+  })
+
+  const sendReceipt = await waitForReceipt(sendTxHash, 30, 1000)
+  if (sendReceipt && sendReceipt.status === '0x0') {
+    throw new Error('USDC transfer failed. Check your balance.')
+  }
+
+  const gasUsed = (recordReceipt ? parseInt(recordReceipt.gasUsed, 16) : 0)
+                + (sendReceipt ? parseInt(sendReceipt.gasUsed, 16) : 21000)
+  const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
+  const gasCostRaw = BigInt(gasUsed) * BigInt(parseInt(gasPrice, 16))
+
+  return {
+    hash: recordTxHash,
+    transferTxHash: sendTxHash,
+    from, to,
+    routerAddress: SENDARC_ROUTER.address,
+    amount: parseFloat(amount),
+    gasCost: (Number(gasCostRaw) / 1e18).toFixed(9),
+    gasUsed,
+    blockNumber: sendReceipt ? parseInt(sendReceipt.blockNumber, 16) : 0,
+    settlementTime: Date.now() - start,
+    status: 'confirmed',
+    sourceChain: 'Arc Testnet',
+    destinationChain: 'Arc Testnet',
+    network: 'Arc Testnet (via SendArcRouter)',
+    chainId: ARC_TESTNET.id,
+    cctpBridge: false,
+    routedThroughContract: true,
+    simulated: false,
+  }
+}
+
+// Real EURC transfer — EURC is a standard ERC-20 on Arc (not the native gas
+// token like USDC), so this calls transfer(address,uint256) directly.
+export async function sendEurcOnArc({ from, to, amount }) {
+  if (!window.ethereum) throw new Error('MetaMask not found')
+  const start = Date.now()
+  const rawAmount = BigInt(Math.round(parseFloat(amount) * Math.pow(10, ARC_TESTNET.eurcDecimals)))
+
+  const paddedRecipient = to.replace('0x', '').toLowerCase().padStart(64, '0')
+  const paddedAmount = rawAmount.toString(16).padStart(64, '0')
+  const data = '0xa9059cbb' + paddedRecipient + paddedAmount // transfer(address,uint256)
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{ from, to: ARC_TESTNET.eurcAddress, value: '0x0', data, gas: '0x186A0' }],
+  })
+
+  const receipt = await waitForReceipt(txHash, 30, 1000)
+  if (receipt && receipt.status === '0x0') {
+    throw new Error('EURC transfer failed. Check your balance.')
+  }
+  const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 60000
+  const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
+  const gasCostRaw = BigInt(gasUsed) * BigInt(parseInt(gasPrice, 16))
+
+  return {
+    hash: txHash, from, to,
+    token: 'EURC',
+    amount: parseFloat(amount),
+    gasCost: (Number(gasCostRaw) / 1e18).toFixed(9),
+    gasUsed,
+    blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : 0,
+    settlementTime: Date.now() - start,
+    status: 'confirmed',
+    sourceChain: 'Arc Testnet',
+    destinationChain: 'Arc Testnet',
+    network: 'Arc Testnet',
+    chainId: ARC_TESTNET.id,
+    cctpBridge: false,
+    simulated: false,
+  }
+}
+
+// Real cirBTC transfer — standard ERC-20, decimals read from the contract
+// itself rather than assumed, since that number is never worth guessing.
+export async function sendCirbtcOnArc({ from, to, amount }) {
+  if (!window.ethereum) throw new Error('MetaMask not found')
+  const start = Date.now()
+  const decimals = await getTokenDecimals(ARC_TESTNET.cirbtcAddress)
+  const rawAmount = BigInt(Math.round(parseFloat(amount) * Math.pow(10, decimals)))
+
+  const paddedRecipient = to.replace('0x', '').toLowerCase().padStart(64, '0')
+  const paddedAmount = rawAmount.toString(16).padStart(64, '0')
+  const data = '0xa9059cbb' + paddedRecipient + paddedAmount // transfer(address,uint256)
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{ from, to: ARC_TESTNET.cirbtcAddress, value: '0x0', data, gas: '0x186A0' }],
+  })
+
+  const receipt = await waitForReceipt(txHash, 30, 1000)
+  if (receipt && receipt.status === '0x0') {
+    throw new Error('cirBTC transfer failed. Check your balance.')
+  }
+  const gasUsed = receipt ? parseInt(receipt.gasUsed, 16) : 60000
+  const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' })
+  const gasCostRaw = BigInt(gasUsed) * BigInt(parseInt(gasPrice, 16))
+
+  return {
+    hash: txHash, from, to,
+    token: 'cirBTC',
+    amount: parseFloat(amount),
+    gasCost: (Number(gasCostRaw) / 1e18).toFixed(9),
+    gasUsed,
+    blockNumber: receipt ? parseInt(receipt.blockNumber, 16) : 0,
+    settlementTime: Date.now() - start,
+    status: 'confirmed',
+    sourceChain: 'Arc Testnet',
+    destinationChain: 'Arc Testnet',
+    network: 'Arc Testnet',
+    chainId: ARC_TESTNET.id,
+    cctpBridge: false,
+    simulated: false,
+  }
+}
+
 export async function sendUsdcOnChain(chainKey, { to, amount }, onStatusUpdate = () => {}) {
   if (!window.ethereum) throw new Error('MetaMask not found')
   const accounts = await window.ethereum.request({ method: 'eth_accounts' })
@@ -248,6 +448,10 @@ export async function sendUsdcOnChain(chainKey, { to, amount }, onStatusUpdate =
   if (!from) throw new Error('No account connected')
 
   if (chainKey === 'arc') {
+    if (SENDARC_ROUTER.address) {
+      onStatusUpdate('Routing through SendArcRouter...')
+      return sendUsdcViaSendArcRouter({ from, to, amount })
+    }
     onStatusUpdate('Sending USDC on Arc Testnet...')
     return sendUsdcNativeArc({ from, to, amount })
   }
