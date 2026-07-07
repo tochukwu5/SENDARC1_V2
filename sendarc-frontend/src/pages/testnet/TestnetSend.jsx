@@ -8,8 +8,8 @@ import {
 } from '../../utils/arcTestnet'
 import { Card, LoadingSpinner } from '../../components/UI'
 import Navbar from '../../components/Navbar'
-
-const BRIDGE_CHAINS = [EVM_CHAINS.ethereum, EVM_CHAINS.base, EVM_CHAINS.arbitrum]
+import TokenSelectModal, { TokenIcon } from '../../components/TokenSelectModal'
+import NetworkTokenModal from '../../components/NetworkTokenModal'
 
 // CCTP flow steps shown while a bridge transaction is in flight
 const CCTP_STEPS = [
@@ -18,6 +18,26 @@ const CCTP_STEPS = [
   { key: 'attest',   label: 'Attest' },
   { key: 'mint',     label: 'Mint on Arc' },
 ]
+
+// Every network shown in the bridge picker. Only ones with `usdcAddress`
+// resolved are wired to real CCTP contracts in arcTestnet.js — the rest
+// are shown for visual completeness and marked "Soon".
+const ALL_NETWORKS = [
+  { key: 'arc',       name: 'Arc Testnet',       icon: '⬡',  usdcAddress: ARC_TESTNET.usdcAddress },
+  { key: 'ethereum',  name: 'Ethereum Sepolia',  icon: '⟠',  usdcAddress: EVM_CHAINS.ethereum.usdcAddress },
+  { key: 'base',      name: 'Base Sepolia',      icon: '🔵', usdcAddress: EVM_CHAINS.base.usdcAddress },
+  { key: 'arbitrum',  name: 'Arbitrum Sepolia',  icon: '🔷', usdcAddress: EVM_CHAINS.arbitrum.usdcAddress },
+  { key: 'optimism',  name: 'Optimism Sepolia',  icon: '🔴' },
+  { key: 'avalanche', name: 'Avalanche Fuji',    icon: '🔺' },
+  { key: 'linea',     name: 'Linea Sepolia',     icon: '🌀' },
+  { key: 'polygon',   name: 'Polygon Amoy',      icon: '🟣' },
+  { key: 'sonic',     name: 'Sonic Testnet',     icon: '💨' },
+  { key: 'unichain',  name: 'Unichain Sepolia',  icon: '🦄' },
+]
+const FROM_ENABLED = ['ethereum', 'base', 'arbitrum']
+const TO_ENABLED = ['arc']
+
+const AMOUNT_PRESETS = [1, 5, 10]
 
 export default function TestnetSend() {
   const {
@@ -30,12 +50,19 @@ export default function TestnetSend() {
   const [view, setView] = useState('form')            // 'form' | 'confirm' | 'success'
 
   const [sourceChainKey, setSourceChainKey] = useState('arc')
+  const [bridgeToKey, setBridgeToKey] = useState('arc')
   const [chainBalance, setChainBalance] = useState(arcBalance)
   const [switchingChain, setSwitchingChain] = useState(false)
   const [switchError, setSwitchError] = useState(null)
 
+  const [selectedToken, setSelectedToken] = useState('USDC')
+  const [showTokenModal, setShowTokenModal] = useState(false)
+  const [showFromModal, setShowFromModal] = useState(false)
+  const [showToModal, setShowToModal] = useState(false)
+
   const [recipient, setRecipient] = useState('')
   const [useOwnAddress, setUseOwnAddress] = useState(false)
+  const [showWalletInput, setShowWalletInput] = useState(false)
   const [amount, setAmount] = useState('')
   const [showMemo, setShowMemo] = useState(false)
   const [memo, setMemo] = useState('')
@@ -51,6 +78,16 @@ export default function TestnetSend() {
 
   const selectedChain = EVM_CHAINS[sourceChainKey]
   const isCCTP = selectedChain && selectedChain.useCCTP
+  const tokenSupported = selectedToken === 'USDC'
+
+  const fromNetworks = ALL_NETWORKS.map(n => ({ ...n, enabled: FROM_ENABLED.includes(n.key) }))
+  const toNetworks = ALL_NETWORKS.map(n => ({ ...n, enabled: TO_ENABLED.includes(n.key) }))
+  const sendTokens = [
+    { symbol: 'USDC',   name: 'USD Coin',       icon: '$', color: '#2775CA', balance: chainBalance,   enabled: true },
+    { symbol: 'EURC',   name: 'Euro Coin',      icon: '€', color: '#1F6FD1', balance: '0.000000', enabled: false },
+    { symbol: 'USDT',   name: 'Tether USD',     icon: '₮', color: '#26A17B', balance: '0.000000', enabled: false },
+    { symbol: 'cirBTC', name: 'Circle Bitcoin', icon: '₿', color: '#8256E9', balance: '0.000000', enabled: false },
+  ]
 
   const handleChainSelect = async (chainKey) => {
     if (chainKey === sourceChainKey) return
@@ -80,6 +117,15 @@ export default function TestnetSend() {
     if (!account) return
     getUsdcBalance(sourceChainKey, account).then(setChainBalance)
   }, [sourceChainKey, account, arcBalance])
+
+  // Default the recipient to the connected wallet until the person expands
+  // "Add receiving wallet" and picks someone else — mirrors the reference flow.
+  useEffect(() => {
+    if (activeTab === 'bridge' && account && !showWalletInput) {
+      setRecipient(account)
+      setUseOwnAddress(true)
+    }
+  }, [activeTab, account, showWalletInput])
 
   const handleStatusUpdate = (msg) => {
     setCctpStatus(msg)
@@ -116,13 +162,14 @@ export default function TestnetSend() {
   }
 
   const resetForm = () => {
-    setView('form'); setRecipient(''); setAmount(''); setMemo(''); setShowMemo(false)
+    setView('form'); setAmount(''); setMemo(''); setShowMemo(false); setShowWalletInput(false)
     setTxResult(null); setCctpStatus(''); setCctpDoneSteps([]); setCctpActiveStep(-1); setSendError(null)
   }
 
   const changeTab = (tab) => {
     if (tab === activeTab) return
     setActiveTab(tab)
+    setSelectedToken('USDC')
     resetForm()
   }
 
@@ -131,9 +178,14 @@ export default function TestnetSend() {
     : null
   const isValidAddress = recipient && recipient.startsWith('0x') && recipient.length === 42
   const isValidAmount = amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(chainBalance)
-  const canReview = isValidAddress && isValidAmount && !switchingChain
+  const canReview = isValidAddress && isValidAmount && !switchingChain && tokenSupported
 
   const explorerTxUrl = (hash) => selectedChain ? selectedChain.explorerUrl + '/tx/' + hash : arcScanTx(hash)
+
+  const fillAmount = (val) => {
+    const capped = Math.min(val, parseFloat(chainBalance) || 0)
+    setAmount(capped > 0 ? capped.toString() : '')
+  }
 
   return (
     <>
@@ -202,72 +254,56 @@ export default function TestnetSend() {
               </div>
             )}
 
-            {/* Form view */}
-            {isConnected && view === 'form' && (
+            {/* ── SEND FORM ─────────────────────────────────────────── */}
+            {isConnected && view === 'form' && activeTab === 'send' && (
               <div>
-                {/* Bridge: source chain pills */}
-                {activeTab === 'bridge' && (
-                  <div className="mb-4">
-                    <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">FROM</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {BRIDGE_CHAINS.map(chain => {
-                        const key = Object.keys(EVM_CHAINS).find(k => EVM_CHAINS[k].id === chain.id)
-                        const isActive = sourceChainKey === key
-                        return (
-                          <button
-                            key={chain.id}
-                            onClick={() => handleChainSelect(key)}
-                            disabled={switchingChain}
-                            className={'px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1.5 disabled:opacity-60 ' + (
-                              isActive ? 'text-white' : 'border-[#1e2530] text-[#8892a0] hover:text-white'
-                            )}
-                            style={isActive ? { borderColor: chain.color, backgroundColor: chain.color + '15' } : {}}
-                          >
-                            <span>{chain.icon}</span>{chain.name}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {switchingChain && (
-                      <p className="mt-2 text-xs text-[#00D4FF] flex items-center gap-1.5">
-                        <LoadingSpinner size="sm" /> Switching network…
-                      </p>
-                    )}
-                    {switchError && <p className="mt-2 text-xs text-red-400">{switchError}</p>}
-                  </div>
-                )}
-
-                {/* You send */}
                 <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">YOU SEND</p>
                 <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="flex items-center gap-1.5 text-sm text-white font-semibold">
-                      <span>{selectedChain?.icon}</span>{selectedChain?.name || 'Arc Testnet'}
+                    <button
+                      onClick={() => setShowTokenModal(true)}
+                      className="flex items-center gap-1.5 text-sm text-white font-semibold hover:text-[#00D4FF] transition-colors"
+                    >
+                      <TokenIcon symbol={sendTokens.find(t => t.symbol === selectedToken)?.icon} color={sendTokens.find(t => t.symbol === selectedToken)?.color} size={22} />
+                      {selectedToken}
+                      <span className="text-[#8892a0] text-xs">⌄</span>
+                    </button>
+                    <span className="text-[10px] text-[#8892a0]">
+                      Balance: {tokenSupported ? chainBalance : '0.000000'} {selectedToken}
                     </span>
-                    <span className="text-[10px] text-[#8892a0]">Balance: {chainBalance} USDC</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <input
                       type="number"
                       placeholder="0.00"
                       value={amount}
+                      disabled={!tokenSupported}
                       onChange={e => {
                         const val = parseFloat(e.target.value)
                         if (e.target.value === '' || e.target.value === '0') setAmount('')
                         else if (!isNaN(val) && val > 0) setAmount(e.target.value)
                       }}
                       min="0"
-                      className="flex-1 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk']"
+                      className="flex-1 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk'] disabled:opacity-30"
                     />
-                    <span className="text-sm text-white bg-[#1e2530] px-3 py-1 rounded-md">USDC</span>
-                    <button
-                      onClick={() => setAmount(Math.max(0, parseFloat(chainBalance) - 0.001).toFixed(6))}
-                      className="text-[10px] text-[#00D4FF] hover:underline"
-                    >
-                      Max
-                    </button>
+                    <span className="text-sm text-white bg-[#1e2530] px-3 py-1 rounded-md">{selectedToken}</span>
+                    {tokenSupported && (
+                      <button
+                        onClick={() => setAmount(Math.max(0, parseFloat(chainBalance) - 0.001).toFixed(6))}
+                        className="text-[10px] text-[#00D4FF] hover:underline"
+                      >
+                        Max
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {!tokenSupported && (
+                  <div className="mt-2.5 bg-[#1a1408] border border-[#3d2f10] rounded-lg px-3 py-2 flex items-start gap-2">
+                    <span className="text-sm">🚧</span>
+                    <p className="text-xs text-[#e8c374]">{selectedToken} isn't live on Arc Testnet yet — switch to USDC to send.</p>
+                  </div>
+                )}
 
                 {/* Divider arrow */}
                 <div className="flex justify-center -my-2.5 relative z-10">
@@ -277,9 +313,7 @@ export default function TestnetSend() {
                 {/* Recipient */}
                 <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] tracking-widest text-[#8892a0]">
-                      {activeTab === 'bridge' ? 'RECIPIENT ON ARC TESTNET' : 'SEND TO'}
-                    </span>
+                    <span className="text-[10px] tracking-widest text-[#8892a0]">SEND TO</span>
                     <button onClick={() => { setRecipient(account || ''); setUseOwnAddress(true) }}
                       className="text-[10px] text-[#00D4FF] hover:underline">
                       Use my address
@@ -313,7 +347,6 @@ export default function TestnetSend() {
                   />
                 )}
 
-                {/* Compact stats row */}
                 <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1e2530] text-center">
                   <div>
                     <p className="text-[9px] text-[#8892a0] mb-0.5">RATE</p>
@@ -321,15 +354,15 @@ export default function TestnetSend() {
                   </div>
                   <div>
                     <p className="text-[9px] text-[#8892a0] mb-0.5">EST. TIME</p>
-                    <p className="text-xs text-white font-semibold">{isCCTP ? '~2–5 min' : '< 1 sec'}</p>
+                    <p className="text-xs text-white font-semibold">&lt; 1 sec</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-[#8892a0] mb-0.5">NETWORK FEE</p>
-                    <p className="text-xs text-white font-semibold">{isCCTP ? 'ETH gas' : 'USDC gas'}</p>
+                    <p className="text-xs text-white font-semibold">USDC gas</p>
                   </div>
                 </div>
 
-                {afterSend !== null && (
+                {afterSend !== null && tokenSupported && (
                   <div className="flex justify-between text-xs mt-3 text-[#8892a0]">
                     <span>After send</span>
                     <span className={parseFloat(afterSend) < 0 ? 'text-red-400' : 'text-white'}>{afterSend} USDC</span>
@@ -341,7 +374,160 @@ export default function TestnetSend() {
                   disabled={!canReview}
                   className="w-full mt-5 bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold py-3.5 rounded-xl hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Review &amp; {activeTab === 'bridge' ? 'Bridge' : 'Send'} →
+                  Review &amp; Send →
+                </button>
+              </div>
+            )}
+
+            {/* ── BRIDGE FORM ───────────────────────────────────────── */}
+            {isConnected && view === 'form' && activeTab === 'bridge' && (
+              <div>
+                <div className="flex justify-end gap-2 mb-3">
+                  <Link to="/testnet/transactions" title="History"
+                    className="w-8 h-8 rounded-lg border border-[#1e2530] flex items-center justify-center text-[#8892a0] hover:text-white hover:border-[#00D4FF] transition-colors text-sm">
+                    🕓
+                  </Link>
+                  <button
+                    title="Refresh balance"
+                    onClick={() => account && getUsdcBalance(sourceChainKey, account).then(setChainBalance)}
+                    className="w-8 h-8 rounded-lg border border-[#1e2530] flex items-center justify-center text-[#8892a0] hover:text-white hover:border-[#00D4FF] transition-colors text-sm">
+                    🔄
+                  </button>
+                </div>
+
+                {/* Bridge from */}
+                <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] tracking-widest text-[#8892a0]">BRIDGE FROM</span>
+                    <span className="text-[10px] text-[#8892a0]">
+                      Balance: {chainBalance} USDC
+                      {parseFloat(chainBalance) > 0 && (
+                        <button onClick={() => setAmount(Math.max(0, parseFloat(chainBalance) - 0.001).toFixed(6))}
+                          className="ml-2 text-[#00D4FF] hover:underline">Max</button>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      onClick={() => setShowFromModal(true)}
+                      disabled={switchingChain}
+                      className="flex items-center gap-1.5 bg-[#1e2530] px-3 py-1.5 rounded-lg text-sm text-white font-semibold hover:opacity-80 transition-opacity flex-shrink-0 disabled:opacity-60"
+                    >
+                      <TokenIcon symbol="$" color="#2775CA" size={20} />
+                      USDC <span className="text-[#8892a0] text-xs">⌄</span>
+                    </button>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value)
+                        if (e.target.value === '' || e.target.value === '0') setAmount('')
+                        else if (!isNaN(val) && val > 0) setAmount(e.target.value)
+                      }}
+                      min="0"
+                      className="flex-1 min-w-0 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk'] text-right"
+                    />
+                  </div>
+                  <p className="text-[10px] text-[#556] mt-1">{selectedChain?.icon} {selectedChain?.name}</p>
+                  {switchingChain && (
+                    <p className="mt-1.5 text-xs text-[#00D4FF] flex items-center gap-1.5">
+                      <LoadingSpinner size="sm" /> Switching network…
+                    </p>
+                  )}
+                  {switchError && <p className="mt-1.5 text-xs text-red-400">{switchError}</p>}
+                </div>
+
+                {/* Divider arrow — reversing not yet supported */}
+                <div className="flex justify-center -my-2.5 relative z-10">
+                  <div
+                    title="Bridging out of Arc Testnet isn't available yet"
+                    className="w-8 h-8 rounded-full bg-[#0f1822] border border-[#1e2530] flex items-center justify-center text-[#8892a0] cursor-default"
+                  >
+                    ↓
+                  </div>
+                </div>
+
+                {/* Bridge to */}
+                <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
+                  <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">BRIDGE TO</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      onClick={() => setShowToModal(true)}
+                      className="flex items-center gap-1.5 bg-[#1e2530] px-3 py-1.5 rounded-lg text-sm text-white font-semibold hover:opacity-80 transition-opacity flex-shrink-0"
+                    >
+                      <TokenIcon symbol="$" color="#2775CA" size={20} />
+                      USDC <span className="text-[#8892a0] text-xs">⌄</span>
+                    </button>
+                    <span className="flex-1 min-w-0 text-right text-2xl font-bold font-['Space_Grotesk'] text-[#8892a0]">
+                      {amount || '0.00'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#556] mt-1">⬡ Arc Testnet</p>
+                </div>
+
+                {/* Receiving wallet */}
+                {!showWalletInput ? (
+                  <button onClick={() => setShowWalletInput(true)} className="text-[10px] text-[#8892a0] hover:text-[#00D4FF] mt-2">
+                    + Add receiving wallet
+                  </button>
+                ) : (
+                  <div className="mt-2 bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] tracking-widest text-[#8892a0]">RECEIVING WALLET (ARC TESTNET)</span>
+                      <button onClick={() => { setRecipient(account || ''); setUseOwnAddress(true) }}
+                        className="text-[10px] text-[#00D4FF] hover:underline">
+                        Use my address
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="0x… wallet address"
+                      value={recipient}
+                      onChange={e => { setRecipient(e.target.value); setUseOwnAddress(false) }}
+                      className="w-full bg-transparent text-white text-sm font-mono outline-none"
+                    />
+                    {useOwnAddress && <p className="text-[10px] text-[#00D4FF] mt-1">✓ Sending to your own address</p>}
+                    {recipient && !isValidAddress && (
+                      <p className="text-[10px] text-red-400 mt-1">Must be a valid 0x address</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Quick presets */}
+                <div className="flex gap-2 mt-3">
+                  {AMOUNT_PRESETS.map(v => (
+                    <button
+                      key={v}
+                      onClick={() => fillAmount(v)}
+                      className="flex items-center gap-1 bg-[#0f1822] border border-[#1e2530] rounded-full px-3 py-1 text-[11px] text-white hover:border-[#00D4FF] transition-colors"
+                    >
+                      <TokenIcon symbol="$" color="#2775CA" size={14} /> {v} USDC
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1e2530] text-center">
+                  <div>
+                    <p className="text-[9px] text-[#8892a0] mb-0.5">RATE</p>
+                    <p className="text-xs text-white font-semibold">1 : 1</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-[#8892a0] mb-0.5">EST. TIME</p>
+                    <p className="text-xs text-white font-semibold">~2–5 min</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-[#8892a0] mb-0.5">NETWORK FEE</p>
+                    <p className="text-xs text-white font-semibold">ETH gas</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setView('confirm')}
+                  disabled={!canReview}
+                  className="w-full mt-5 bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold py-3.5 rounded-xl hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Review &amp; Bridge →
                 </button>
               </div>
             )}
@@ -376,7 +562,6 @@ export default function TestnetSend() {
                   )}
                 </div>
 
-                {/* CCTP mini progress */}
                 {isCCTP && (
                   <div className="flex items-center justify-between mb-5 bg-[#0D1117] border border-[#1e2530] rounded-xl px-3 py-3">
                     {CCTP_STEPS.map((s, i) => (
@@ -494,6 +679,30 @@ export default function TestnetSend() {
           </p>
         </div>
       </div>
+
+      <TokenSelectModal
+        open={showTokenModal}
+        onClose={() => setShowTokenModal(false)}
+        tokens={sendTokens}
+        selected={selectedToken}
+        onSelect={setSelectedToken}
+      />
+      <NetworkTokenModal
+        open={showFromModal}
+        onClose={() => setShowFromModal(false)}
+        title="Bridge from"
+        networks={fromNetworks}
+        activeKey={sourceChainKey}
+        onSelect={handleChainSelect}
+      />
+      <NetworkTokenModal
+        open={showToModal}
+        onClose={() => setShowToModal(false)}
+        title="Bridge to"
+        networks={toNetworks}
+        activeKey={bridgeToKey}
+        onSelect={setBridgeToKey}
+      />
     </>
   )
 }
