@@ -489,7 +489,7 @@ export default function TestnetSend() {
                     className="w-8 h-8 rounded-full bg-[#0f1822] border border-[#1e2530] flex items-center justify-center text-[#8892a0] hover:text-[#00D4FF] hover:border-[#00D4FF] active:scale-90 transition-all duration-300"
                     style={{ transform: boxesSwapped ? 'rotate(180deg)' : 'rotate(0deg)' }}
                   >
-                    ↓
+                    ↓↑
                   </button>
                 </div>
 
