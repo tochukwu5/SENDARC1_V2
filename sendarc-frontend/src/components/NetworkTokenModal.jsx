@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { TokenIcon } from './TokenSelectModal'
+import { CoinIcon } from './CoinLogos'
 
-// networks: [{ key, name, icon, color, enabled, usdcAddress }]
+// networks: [{ key, name, icon, enabled, usdcAddress }]
 export default function NetworkTokenModal({ open, onClose, title, networks, activeKey, onSelect }) {
   const [search, setSearch] = useState('')
   const [paneKey, setPaneKey] = useState(activeKey)
@@ -15,16 +15,15 @@ export default function NetworkTokenModal({ open, onClose, title, networks, acti
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4"
       onClick={onClose}
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-[#0f1822] border border-[#1e2530] rounded-2xl w-full max-w-2xl flex overflow-hidden shadow-2xl"
-        style={{ height: 440 }}
+        className="bg-[#0f1822] border border-[#1e2530] rounded-2xl w-full max-w-2xl flex flex-col sm:flex-row overflow-hidden shadow-2xl h-[85vh] sm:h-[440px] max-h-[600px]"
       >
-        {/* Left: network list */}
-        <div className="w-56 border-r border-[#1e2530] flex flex-col flex-shrink-0">
+        {/* Network list — full width row on mobile, side rail on larger screens */}
+        <div className="w-full sm:w-56 border-b sm:border-b-0 sm:border-r border-[#1e2530] flex flex-col flex-shrink-0 min-h-0 max-h-[36vh] sm:max-h-none">
           <div className="p-3">
             <input
               type="text"
@@ -35,7 +34,7 @@ export default function NetworkTokenModal({ open, onClose, title, networks, acti
             />
           </div>
           <p className="px-4 text-[9px] tracking-widest text-[#8892a0] mb-1">TOP CHAINS</p>
-          <div className="flex-1 overflow-y-auto px-2 pb-2">
+          <div className="flex-1 overflow-y-auto px-2 pb-2 min-h-0">
             {filtered.map(n => (
               <button
                 key={n.key}
@@ -48,20 +47,20 @@ export default function NetworkTokenModal({ open, onClose, title, networks, acti
                 }
               >
                 <span>{n.icon}</span>
-                <span className="flex-1">{n.name}</span>
-                {!n.enabled && <span className="text-[8px] text-[#556]">Soon</span>}
+                <span className="flex-1 truncate">{n.name}</span>
+                {!n.enabled && <span className="text-[8px] text-[#556] flex-shrink-0">Soon</span>}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Right: token for selected network */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e2530]">
+        {/* Token for selected network */}
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e2530] flex-shrink-0">
             <h3 className="font-bold font-['Space_Grotesk'] text-white text-sm">{title}</h3>
             <button onClick={onClose} className="text-[#8892a0] hover:text-white transition-colors">✕</button>
           </div>
-          <div className="p-3">
+          <div className="p-3 flex-shrink-0">
             <input
               type="text"
               placeholder="search token name or paste address"
@@ -69,25 +68,25 @@ export default function NetworkTokenModal({ open, onClose, title, networks, acti
               className="w-full bg-[#0D1117] border border-[#1e2530] rounded-lg px-3 py-2 text-xs text-[#556] outline-none"
             />
           </div>
-          <div className="flex-1 overflow-y-auto px-2">
+          <div className="flex-1 overflow-y-auto px-2 min-h-0">
             {paneNetwork ? (
               <button
                 onClick={() => { onSelect(paneNetwork.key); onClose() }}
-                className="w-full flex items-center justify-between px-3 py-3 rounded-xl hover:bg-[#1e2530] transition-colors"
+                className="w-full flex items-center justify-between gap-2 px-2 sm:px-3 py-3 rounded-xl hover:bg-[#1e2530] transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <TokenIcon symbol="$" color="#2775CA" />
-                  <div className="text-left">
+                <div className="flex items-center gap-3 min-w-0">
+                  <CoinIcon symbol="USDC" size={32} />
+                  <div className="text-left min-w-0">
                     <p className="text-white text-sm font-semibold">USDC</p>
                     <p className="text-[#8892a0] text-xs">USD Coin</p>
                   </div>
                 </div>
-                <span className="text-[#8892a0] text-[10px] font-mono">
+                <span className="text-[#8892a0] text-[10px] font-mono flex-shrink-0">
                   {paneNetwork.usdcAddress ? paneNetwork.usdcAddress.slice(0, 6) + '…' + paneNetwork.usdcAddress.slice(-4) : ''}
                 </span>
               </button>
             ) : (
-              <p className="text-center text-xs text-[#556] py-10">Select a network on the left</p>
+              <p className="text-center text-xs text-[#556] py-10">Select a network above</p>
             )}
           </div>
         </div>

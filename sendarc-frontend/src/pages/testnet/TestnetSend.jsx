@@ -9,7 +9,8 @@ import {
 } from '../../utils/arcTestnet'
 import { Card, LoadingSpinner } from '../../components/UI'
 import Navbar from '../../components/Navbar'
-import TokenSelectModal, { TokenIcon } from '../../components/TokenSelectModal'
+import TokenSelectModal from '../../components/TokenSelectModal'
+import { CoinIcon } from '../../components/CoinLogos'
 import NetworkTokenModal from '../../components/NetworkTokenModal'
 
 // CCTP flow steps shown while a bridge transaction is in flight
@@ -62,6 +63,7 @@ export default function TestnetSend() {
   const [showTokenModal, setShowTokenModal] = useState(false)
   const [showFromModal, setShowFromModal] = useState(false)
   const [showToModal, setShowToModal] = useState(false)
+  const [boxesSwapped, setBoxesSwapped] = useState(false)
 
   const [recipient, setRecipient] = useState('')
   const [useOwnAddress, setUseOwnAddress] = useState(false)
@@ -87,9 +89,9 @@ export default function TestnetSend() {
   const fromNetworks = ALL_NETWORKS.map(n => ({ ...n, enabled: FROM_ENABLED.includes(n.key) }))
   const toNetworks = ALL_NETWORKS.map(n => ({ ...n, enabled: TO_ENABLED.includes(n.key) }))
   const sendTokens = [
-    { symbol: 'USDC',   name: 'USD Coin',       icon: '$', color: '#2775CA', balance: chainBalance,  enabled: true },
-    { symbol: 'EURC',   name: 'Euro Coin',      icon: '€', color: '#1F6FD1', balance: eurcBalance,   enabled: true },
-    { symbol: 'cirBTC', name: 'Circle Bitcoin', icon: '₿', color: '#8256E9', balance: cirbtcBalance, enabled: true },
+    { symbol: 'USDC',   name: 'USD Coin',       balance: chainBalance,  enabled: true },
+    { symbol: 'EURC',   name: 'Euro Coin',      balance: eurcBalance,   enabled: true },
+    { symbol: 'cirBTC', name: 'Circle Bitcoin', balance: cirbtcBalance, enabled: true },
   ]
 
   const handleChainSelect = async (chainKey) => {
@@ -107,6 +109,11 @@ export default function TestnetSend() {
       setSwitchingChain(false)
     }
   }
+
+  // Purely visual — flips which box (Bridge from / Bridge to) is on top.
+  // The underlying source/destination chains are unchanged; this doesn't
+  // attempt an actual reverse-direction bridge.
+  const toggleBoxesSwapped = () => setBoxesSwapped(s => !s)
 
   // Keep the wallet network in sync with the active tab
   useEffect(() => {
@@ -203,6 +210,73 @@ export default function TestnetSend() {
     setAmount(capped > 0 ? capped.toString() : '')
   }
 
+  const fromBox = (
+    <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
+      <div className="flex items-center justify-between flex-wrap gap-y-1 mb-2">
+        <span className="text-[10px] tracking-widest text-[#8892a0]">BRIDGE FROM</span>
+        <span className="text-[10px] text-[#8892a0]">
+          Balance: {chainBalance} USDC
+          {parseFloat(chainBalance) > 0 && (
+            <>
+              <button onClick={() => setAmount((Math.max(0, parseFloat(chainBalance) || 0) * 0.5).toFixed(6))}
+                className="ml-2 text-[#8892a0] hover:text-[#00D4FF] transition-colors">50%</button>
+              <button onClick={() => setAmount(Math.max(0, parseFloat(chainBalance) - 0.001).toFixed(6))}
+                className="ml-2 text-[#00D4FF] hover:underline">Max</button>
+            </>
+          )}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2 sm:gap-3">
+        <button
+          onClick={() => setShowFromModal(true)}
+          disabled={switchingChain}
+          className="flex items-center gap-1.5 bg-[#1e2530] px-3 py-1.5 rounded-lg text-sm text-white font-semibold hover:opacity-80 transition-opacity flex-shrink-0 disabled:opacity-60"
+        >
+          <CoinIcon symbol="USDC" size={20} />
+          USDC <span className="text-[#8892a0] text-xs">⌄</span>
+        </button>
+        <input
+          type="number"
+          placeholder="0.00"
+          value={amount}
+          onChange={e => {
+            const val = parseFloat(e.target.value)
+            if (e.target.value === '' || e.target.value === '0') setAmount('')
+            else if (!isNaN(val) && val > 0) setAmount(e.target.value)
+          }}
+          min="0"
+          className="flex-1 min-w-0 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk'] text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0"
+        />
+      </div>
+      <p className="text-[10px] text-[#556] mt-1">{selectedChain?.icon} {selectedChain?.name}</p>
+      {switchingChain && (
+        <p className="mt-1.5 text-xs text-[#00D4FF] flex items-center gap-1.5">
+          <LoadingSpinner size="sm" /> Switching network…
+        </p>
+      )}
+      {switchError && <p className="mt-1.5 text-xs text-red-400">{switchError}</p>}
+    </div>
+  )
+
+  const toBox = (
+    <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
+      <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">BRIDGE TO</p>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          onClick={() => setShowToModal(true)}
+          className="flex items-center gap-1.5 bg-[#1e2530] px-3 py-1.5 rounded-lg text-sm text-white font-semibold hover:opacity-80 transition-opacity flex-shrink-0"
+        >
+          <CoinIcon symbol="USDC" size={20} />
+          USDC <span className="text-[#8892a0] text-xs">⌄</span>
+        </button>
+        <span className="flex-1 min-w-0 text-right text-2xl font-bold font-['Space_Grotesk'] text-[#8892a0]">
+          {amount || '0.00'}
+        </span>
+      </div>
+      <p className="text-[10px] text-[#556] mt-1">⬡ Arc Testnet</p>
+    </div>
+  )
+
   return (
     <>
       <Navbar />
@@ -210,9 +284,9 @@ export default function TestnetSend() {
         <div className="max-w-lg mx-auto">
 
           {/* Header */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
             <div>
-              <h1 className="text-xl font-bold font-['Space_Grotesk'] text-white">Send &amp; Bridge USDC</h1>
+              <h1 className="text-lg sm:text-xl font-bold font-['Space_Grotesk'] text-white">Send &amp; Bridge USDC</h1>
               <p className="text-xs text-[#8892a0] mt-0.5">Move USDC across wallets and chains.</p>
             </div>
             {account && (
@@ -243,46 +317,33 @@ export default function TestnetSend() {
 
           <Card className="p-6">
 
-            {/* Not connected */}
-            {!isConnected && (
+            {/* Only shown when MetaMask itself isn't installed — a hard
+                blocker. Otherwise the forms below are always shown; the
+                Navbar's own Connect Wallet button handles connecting. */}
+            {!hasMetaMask && (
               <div className="text-center py-4">
-                {/* <div className="text-3xl mb-3">🦊</div> */}
-                {!hasMetaMask ? (
-                  <>
-                    <h3 className="font-bold font-['Space_Grotesk'] mb-1.5">MetaMask required</h3>
-                    <p className="text-[#8892a0] text-sm mb-4">Install MetaMask to send or bridge USDC.</p>
-                    <a href="https://metamask.io" target="_blank" rel="noreferrer"
-                      className="bg-[#e8821a] text-white font-['Space_Grotesk'] font-bold px-6 py-2.5 rounded-xl hover:opacity-90 inline-block">
-                      Install MetaMask ↗
-                    </a>
-                  </>
-                ) : (
-                  <>
-                    {/* <h3 className="font-bold font-['Space_Grotesk'] mb-1.5">Connect your wallet</h3>
-                    <p className="text-[#8892a0] text-sm mb-4">We'll switch networks for you automatically.</p>
-                    <button onClick={connect} disabled={isLoading}
-                      className="bg-[#00D4FF] text-[#0D1117] font-['Space_Grotesk'] font-bold px-8 py-3 rounded-xl hover:opacity-90 disabled:opacity-50">
-                      {isLoading ? 'Connecting…' : 'Connect Wallet'}
-                    </button>
-                    {error && <p className="mt-3 text-red-400 text-xs">{error}</p>} */}
-                  </>
-                )}
+                <h3 className="font-bold font-['Space_Grotesk'] mb-1.5">MetaMask required</h3>
+                <p className="text-[#8892a0] text-sm mb-4">Install MetaMask to send or bridge USDC.</p>
+                <a href="https://metamask.io" target="_blank" rel="noreferrer"
+                  className="bg-[#e8821a] text-white font-['Space_Grotesk'] font-bold px-6 py-2.5 rounded-xl hover:opacity-90 inline-block">
+                  Install MetaMask ↗
+                </a>
               </div>
             )}
 
             {/* ── SEND FORM ─────────────────────────────────────────── */}
-            { view === 'form' && activeTab === 'send' && (
+            {hasMetaMask && view === 'form' && activeTab === 'send' && (
               <div>
                 <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">YOU SEND</p>
                 <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between flex-wrap gap-y-1 mb-2">
                     <button
                       onClick={() => setShowTokenModal(true)}
                       className="flex items-center gap-1.5 text-sm text-white font-semibold hover:text-[#00D4FF] transition-colors"
                     >
-                      <TokenIcon symbol={sendTokens.find(t => t.symbol === selectedToken)?.icon} color={sendTokens.find(t => t.symbol === selectedToken)?.color} size={22} />
+                      <CoinIcon symbol={selectedToken} size={22} />
                       {selectedToken}
-                      <span className="text-[#8892a0] text-xl mb-4">⌄</span>
+                      <span className="text-[#8892a0] text-xs">⌄</span>
                     </button>
                     <span className="text-[10px] text-[#8892a0]">
                       Balance: {tokenSupported ? activeBalance : '0.000000'} {selectedToken}
@@ -300,16 +361,23 @@ export default function TestnetSend() {
                         else if (!isNaN(val) && val > 0) setAmount(e.target.value)
                       }}
                       min="0"
-                      className="flex-1 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk'] disabled:opacity-30"
+                      className="flex-1 min-w-0 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk'] disabled:opacity-30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0"
                     />
-                    <span className="text-sm text-white bg-[#1e2530] px-3 py-1 rounded-md">{selectedToken}</span>
                     {tokenSupported && (
-                      <button
-                        onClick={() => setAmount(Math.max(0, parseFloat(activeBalance) - 0.001).toFixed(6))}
-                        className="text-[10px] text-[#00D4FF] hover:underline"
-                      >
-                        Max
-                      </button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => setAmount((Math.max(0, parseFloat(activeBalance) || 0) * 0.5).toFixed(6))}
+                          className="text-[10px] text-[#8892a0] hover:text-[#00D4FF] transition-colors"
+                        >
+                          50%
+                        </button>
+                        <button
+                          onClick={() => setAmount(Math.max(0, parseFloat(activeBalance) - 0.001).toFixed(6))}
+                          className="text-[10px] text-[#00D4FF] hover:underline"
+                        >
+                          Max
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -328,7 +396,7 @@ export default function TestnetSend() {
 
                 {/* Recipient */}
                 <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between flex-wrap gap-y-1 mb-2">
                     <span className="text-[10px] tracking-widest text-[#8892a0]">SEND TO</span>
                     <button onClick={() => { setRecipient(account || ''); setUseOwnAddress(true) }}
                       className="text-[10px] text-[#00D4FF] hover:underline">
@@ -396,7 +464,7 @@ export default function TestnetSend() {
             )}
 
             {/* ── BRIDGE FORM ───────────────────────────────────────── */}
-            {isConnected && view === 'form' && activeTab === 'bridge' && (
+            {hasMetaMask && view === 'form' && activeTab === 'bridge' && (
               <div>
                 <div className="flex justify-end gap-2 mb-3">
                   <Link to="/testnet/transactions" title="History"
@@ -411,76 +479,21 @@ export default function TestnetSend() {
                   </button>
                 </div>
 
-                {/* Bridge from */}
-                <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] tracking-widest text-[#8892a0]">BRIDGE FROM</span>
-                    <span className="text-[10px] text-[#8892a0]">
-                      Balance: {chainBalance} USDC
-                      {parseFloat(chainBalance) > 0 && (
-                        <button onClick={() => setAmount(Math.max(0, parseFloat(chainBalance) - 0.001).toFixed(6))}
-                          className="ml-2 text-[#00D4FF] hover:underline">Max</button>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <button
-                      onClick={() => setShowFromModal(true)}
-                      disabled={switchingChain}
-                      className="flex items-center gap-1.5 bg-[#1e2530] px-3 py-1.5 rounded-lg text-sm text-white font-semibold hover:opacity-80 transition-opacity flex-shrink-0 disabled:opacity-60"
-                    >
-                      <TokenIcon symbol="$" color="#2775CA" size={20} />
-                      USDC <span className="text-[#8892a0] text-xs">⌄</span>
-                    </button>
-                    <input
-                      type="number"
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value)
-                        if (e.target.value === '' || e.target.value === '0') setAmount('')
-                        else if (!isNaN(val) && val > 0) setAmount(e.target.value)
-                      }}
-                      min="0"
-                      className="flex-1 min-w-0 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk'] text-right"
-                    />
-                  </div>
-                  <p className="text-[10px] text-[#556] mt-1">{selectedChain?.icon} {selectedChain?.name}</p>
-                  {switchingChain && (
-                    <p className="mt-1.5 text-xs text-[#00D4FF] flex items-center gap-1.5">
-                      <LoadingSpinner size="sm" /> Switching network…
-                    </p>
-                  )}
-                  {switchError && <p className="mt-1.5 text-xs text-red-400">{switchError}</p>}
-                </div>
+                {/* Bridge from / Bridge to — order flips via boxesSwapped (visual only) */}
+                {boxesSwapped ? toBox : fromBox}
 
-                {/* Divider arrow — reversing not yet supported */}
                 <div className="flex justify-center -my-2.5 relative z-10">
-                  <div
-                    title="Bridging out of Arc Testnet isn't available yet"
-                    className="w-8 h-8 rounded-full bg-[#0f1822] border border-[#1e2530] flex items-center justify-center text-[#8892a0] cursor-default"
+                  <button
+                    onClick={toggleBoxesSwapped}
+                    title="Swap box positions"
+                    className="w-8 h-8 rounded-full bg-[#0f1822] border border-[#1e2530] flex items-center justify-center text-[#8892a0] hover:text-[#00D4FF] hover:border-[#00D4FF] active:scale-90 transition-all duration-300"
+                    style={{ transform: boxesSwapped ? 'rotate(180deg)' : 'rotate(0deg)' }}
                   >
                     ↓
-                  </div>
+                  </button>
                 </div>
 
-                {/* Bridge to */}
-                <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
-                  <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">BRIDGE TO</p>
-                  <div className="flex items-center justify-between gap-3">
-                    <button
-                      onClick={() => setShowToModal(true)}
-                      className="flex items-center gap-1.5 bg-[#1e2530] px-3 py-1.5 rounded-lg text-sm text-white font-semibold hover:opacity-80 transition-opacity flex-shrink-0"
-                    >
-                      <TokenIcon symbol="$" color="#2775CA" size={20} />
-                      USDC <span className="text-[#8892a0] text-xs">⌄</span>
-                    </button>
-                    <span className="flex-1 min-w-0 text-right text-2xl font-bold font-['Space_Grotesk'] text-[#8892a0]">
-                      {amount || '0.00'}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-[#556] mt-1">⬡ Arc Testnet</p>
-                </div>
+                {boxesSwapped ? fromBox : toBox}
 
                 {/* Receiving wallet */}
                 {!showWalletInput ? (
@@ -489,7 +502,7 @@ export default function TestnetSend() {
                   </button>
                 ) : (
                   <div className="mt-2 bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between flex-wrap gap-y-1 mb-1.5">
                       <span className="text-[10px] tracking-widest text-[#8892a0]">RECEIVING WALLET (ARC TESTNET)</span>
                       <button onClick={() => { setRecipient(account || ''); setUseOwnAddress(true) }}
                         className="text-[10px] text-[#00D4FF] hover:underline">
@@ -511,14 +524,14 @@ export default function TestnetSend() {
                 )}
 
                 {/* Quick presets */}
-                <div className="flex gap-2 mt-3">
+                <div className="flex flex-wrap gap-2 mt-3">
                   {AMOUNT_PRESETS.map(v => (
                     <button
                       key={v}
                       onClick={() => fillAmount(v)}
                       className="flex items-center gap-1 bg-[#0f1822] border border-[#1e2530] rounded-full px-3 py-1 text-[11px] text-white hover:border-[#00D4FF] transition-colors"
                     >
-                      <TokenIcon symbol="$" color="#2775CA" size={14} /> {v} USDC
+                      <CoinIcon symbol="USDC" size={14} /> {v} USDC
                     </button>
                   ))}
                 </div>
