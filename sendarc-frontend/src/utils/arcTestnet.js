@@ -24,6 +24,8 @@ export const ARC_TESTNET = {
   cirbtcAddress: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
 }
 
+// USDC addresses verified against developers.circle.com/stablecoins/usdc-contract-addresses
+// Chain IDs/RPCs verified against chainlist.org and each chain's own docs.
 export const EVM_CHAINS = {
   arc: {
     id: 5042002,
@@ -89,6 +91,108 @@ export const EVM_CHAINS = {
     faucetUrl: 'https://faucet.circle.com',
     icon: '🔷',
     color: '#28A0F0',
+    live: true,
+    useCCTP: true,
+    note: 'CCTP Bridge via Circle App Kit',
+  },
+  optimism: {
+    id: 11155420,
+    chainIdHex: '0xAA37DC',
+    name: 'Optimism Sepolia',
+    appKitChain: 'Optimism_Sepolia',
+    symbol: 'ETH',
+    rpcUrl: 'https://sepolia.optimism.io',
+    explorerUrl: 'https://sepolia-optimism.etherscan.io',
+    usdcAddress: '0x5fd84259d66Cd46123540766Be93DFE6D43130D7',
+    nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
+    icon: '🔴',
+    color: '#FF0420',
+    live: true,
+    useCCTP: true,
+    note: 'CCTP Bridge via Circle App Kit',
+  },
+  avalanche: {
+    id: 43113,
+    chainIdHex: '0xA869',
+    name: 'Avalanche Fuji',
+    appKitChain: 'Avalanche_Fuji',
+    symbol: 'AVAX',
+    rpcUrl: 'https://api.avax-test.network/ext/bc/C/rpc',
+    explorerUrl: 'https://testnet.snowtrace.io',
+    usdcAddress: '0x5425890298aed601595a70AB815c96711a31Bc65',
+    nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
+    icon: '🔺',
+    color: '#E84142',
+    live: true,
+    useCCTP: true,
+    note: 'CCTP Bridge via Circle App Kit',
+  },
+  linea: {
+    id: 59141,
+    chainIdHex: '0xE705',
+    name: 'Linea Sepolia',
+    appKitChain: 'Linea_Sepolia',
+    symbol: 'ETH',
+    rpcUrl: 'https://rpc.sepolia.linea.build',
+    explorerUrl: 'https://sepolia.lineascan.build',
+    usdcAddress: '0xFEce4462D57bD51A6A552365A011b95f0E16d9B7',
+    nativeCurrency: { name: 'Linea Ether', symbol: 'ETH', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
+    icon: '🌀',
+    color: '#61DFFF',
+    live: true,
+    useCCTP: true,
+    note: 'CCTP Bridge via Circle App Kit',
+  },
+  polygon: {
+    id: 80002,
+    chainIdHex: '0x13882',
+    name: 'Polygon Amoy',
+    appKitChain: 'Polygon_Amoy_Testnet',
+    symbol: 'POL',
+    rpcUrl: 'https://rpc-amoy.polygon.technology',
+    explorerUrl: 'https://amoy.polygonscan.com',
+    usdcAddress: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
+    nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
+    icon: '🟣',
+    color: '#8247E5',
+    live: true,
+    useCCTP: true,
+    note: 'CCTP Bridge via Circle App Kit',
+  },
+  sonic: {
+    id: 14601,
+    chainIdHex: '0x3909',
+    name: 'Sonic Testnet',
+    appKitChain: 'Sonic_Testnet',
+    symbol: 'S',
+    rpcUrl: 'https://rpc.testnet.soniclabs.com',
+    explorerUrl: 'https://testnet.sonicscan.org',
+    usdcAddress: '0x0BA304580ee7c9a980CF72e55f5Ed2E9fd30Bc51',
+    nativeCurrency: { name: 'Sonic', symbol: 'S', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
+    icon: '💨',
+    color: '#00D2FF',
+    live: true,
+    useCCTP: true,
+    note: 'CCTP Bridge via Circle App Kit',
+  },
+  unichain: {
+    id: 1301,
+    chainIdHex: '0x515',
+    name: 'Unichain Sepolia',
+    appKitChain: 'Unichain_Sepolia',
+    symbol: 'ETH',
+    rpcUrl: 'https://sepolia.unichain.org',
+    explorerUrl: 'https://sepolia.uniscan.xyz',
+    usdcAddress: '0x31d0220469e10c4E71834a79b1f276d740d3768F',
+    nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+    faucetUrl: 'https://faucet.circle.com',
+    icon: '🦄',
+    color: '#FF37C7',
     live: true,
     useCCTP: true,
     note: 'CCTP Bridge via Circle App Kit',
@@ -181,10 +285,17 @@ async function waitForReceipt(txHash, maxAttempts = 60, delayMs = 2000) {
   return null
 }
 
-// Circle App Kit CCTP bridge — official SDK, handles approve/burn/attest/mint
-export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUpdate = () => {}) {
-  const chain = EVM_CHAINS[chainKey]
-  if (!chain || !chain.useCCTP) throw new Error('Chain does not support CCTP: ' + chainKey)
+// Circle App Kit CCTP bridge — official SDK, handles approve/burn/attest/mint.
+// Generalized to any (fromChainKey -> toChainKey) pair, including Arc as a
+// source: Circle's own docs demonstrate `from: { chain: "Arc_Testnet" }` in
+// the App Kit Circle-Wallets example, so outbound-from-Arc is a genuinely
+// supported direction, not just an inbound-to-Arc special case.
+export async function bridgeUsdcViaAppKit({ fromChainKey, toChainKey, from, to, amount }, onStatusUpdate = () => {}) {
+  const fromChain = EVM_CHAINS[fromChainKey]
+  const toChain = EVM_CHAINS[toChainKey]
+  if (!fromChain) throw new Error('Unknown source chain: ' + fromChainKey)
+  if (!toChain) throw new Error('Unknown destination chain: ' + toChainKey)
+  if (fromChainKey === toChainKey) throw new Error('Source and destination can\'t be the same chain.')
 
   try {
     const { AppKit } = await import('@circle-fin/app-kit')
@@ -193,29 +304,27 @@ export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUp
     const kit = new AppKit()
     const start = Date.now()
 
-    // Real-time status from Circle's event system
     kit.on('*', (payload) => {
       const step = payload?.values?.name || payload?.method || ''
       const state = payload?.values?.state || ''
       if (step === 'approve' && state !== 'success') onStatusUpdate('Step 1/3: Approving USDC spend...')
       else if (step === 'approve') onStatusUpdate('Step 1/3: USDC approved ✓')
-      else if (step === 'burn' && state !== 'success') onStatusUpdate('Step 2/3: Burning USDC on ' + chain.name + '...')
+      else if (step === 'burn' && state !== 'success') onStatusUpdate('Step 2/3: Burning USDC on ' + fromChain.name + '...')
       else if (step === 'burn') onStatusUpdate('Step 2/3: USDC burned ✓')
       else if (step === 'attestation' || step === 'attest') onStatusUpdate('Step 3/3: Circle attestation... (1-3 min)')
-      else if (step === 'mint' && state !== 'success') onStatusUpdate('Minting USDC on Arc Testnet...')
-      else if (step === 'mint') onStatusUpdate('✓ USDC minted on Arc Testnet!')
+      else if (step === 'mint' && state !== 'success') onStatusUpdate('Minting USDC on ' + toChain.name + '...')
+      else if (step === 'mint') onStatusUpdate('✓ USDC minted on ' + toChain.name + '!')
     })
 
     const adapter = await createViemAdapterFromProvider({ provider: window.ethereum })
     onStatusUpdate('Starting Circle CCTP bridge...')
 
     let result = await kit.bridge({
-      from: { adapter, chain: chain.appKitChain },
-      to: { adapter, chain: 'Arc_Testnet' },
+      from: { adapter, chain: fromChain.appKitChain },
+      to: { adapter, chain: toChain.appKitChain },
       amount: parseFloat(amount).toFixed(2),
     })
 
-    // Recommended retry pattern from Circle docs
     if (result.state === 'error') {
       onStatusUpdate('Retrying bridge...')
       result = await kit.retryBridge(result, { from: adapter, to: adapter })
@@ -240,10 +349,10 @@ export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUp
       blockNumber: mintStep?.data?.blockNumber ? Number(mintStep.data.blockNumber) : 0,
       settlementTime: Date.now() - start,
       status: 'confirmed',
-      sourceChain: chain.name,
-      destinationChain: 'Arc Testnet',
-      network: chain.name + ' → Arc Testnet (CCTP v2)',
-      chainId: chain.id,
+      sourceChain: fromChain.name,
+      destinationChain: toChain.name,
+      network: fromChain.name + ' → ' + toChain.name + ' (CCTP v2)',
+      chainId: fromChain.id,
       cctpBridge: true,
       appKitBridge: true,
       simulated: false,
@@ -254,6 +363,12 @@ export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUp
     }
     throw err
   }
+}
+
+// Backward-compatible wrapper — always bridges INTO Arc. Still used by the
+// Send tab's sendUsdcOnChain() below for the historical inbound-only path.
+export async function sendUsdcViaCCTP(chainKey, { from, to, amount }, onStatusUpdate = () => {}) {
+  return bridgeUsdcViaAppKit({ fromChainKey: chainKey, toChainKey: 'arc', from, to, amount }, onStatusUpdate)
 }
 
 export async function sendUsdcNativeArc({ from, to, amount }) {

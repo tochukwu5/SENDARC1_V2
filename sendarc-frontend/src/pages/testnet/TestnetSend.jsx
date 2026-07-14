@@ -5,7 +5,8 @@ import { useTestnet } from '../../context/TestnetContext'
 import {
   ARC_TESTNET, EVM_CHAINS, shortAddr, arcScanTx,
   switchToChain, sendUsdcOnChain, getUsdcBalance,
-  getEurcBalance, sendEurcOnArc, getCirbtcBalance, sendCirbtcOnArc
+  getEurcBalance, sendEurcOnArc, getCirbtcBalance, sendCirbtcOnArc,
+  bridgeUsdcViaAppKit
 } from '../../utils/arcTestnet'
 import { Card, LoadingSpinner } from '../../components/UI'
 import Navbar from '../../components/Navbar'
@@ -18,26 +19,19 @@ const CCTP_STEPS = [
   { key: 'approve', label: 'Approve' },
   { key: 'burn',     label: 'Burn' },
   { key: 'attest',   label: 'Attest' },
-  { key: 'mint',     label: 'Mint on Arc' },
+  { key: 'mint',     label: 'Mint' },
 ]
 
-// Every network shown in the bridge picker. Only ones with `usdcAddress`
-// resolved are wired to real CCTP contracts in arcTestnet.js — the rest
-// are shown for visual completeness and marked "Soon".
-const ALL_NETWORKS = [
-  { key: 'arc',       name: 'Arc Testnet',       icon: '⬡',  usdcAddress: ARC_TESTNET.usdcAddress },
-  { key: 'ethereum',  name: 'Ethereum Sepolia',  icon: '⟠',  usdcAddress: EVM_CHAINS.ethereum.usdcAddress },
-  { key: 'base',      name: 'Base Sepolia',      icon: '🔵', usdcAddress: EVM_CHAINS.base.usdcAddress },
-  { key: 'arbitrum',  name: 'Arbitrum Sepolia',  icon: '🔷', usdcAddress: EVM_CHAINS.arbitrum.usdcAddress },
-  { key: 'optimism',  name: 'Optimism Sepolia',  icon: '🔴' },
-  { key: 'avalanche', name: 'Avalanche Fuji',    icon: '🔺' },
-  { key: 'linea',     name: 'Linea Sepolia',     icon: '🌀' },
-  { key: 'polygon',   name: 'Polygon Amoy',      icon: '🟣' },
-  { key: 'sonic',     name: 'Sonic Testnet',     icon: '💨' },
-  { key: 'unichain',  name: 'Unichain Sepolia',  icon: '🦄' },
-]
-const FROM_ENABLED = ['ethereum', 'base', 'arbitrum']
-const TO_ENABLED = ['arc']
+// Every network in the bridge picker. All of these are real, CCTP-bridge-
+// supported chains per Circle's own supported-blockchains reference — none
+// of them are placeholders anymore. Arc can be either side of the bridge.
+const ALL_NETWORKS = Object.keys(EVM_CHAINS).map(key => ({
+  key,
+  name: EVM_CHAINS[key].name,
+  icon: EVM_CHAINS[key].icon,
+  usdcAddress: EVM_CHAINS[key].usdcAddress,
+  enabled: true,
+}))
 
 const AMOUNT_PRESETS = [1, 5, 10]
 
@@ -51,9 +45,10 @@ export default function TestnetSend() {
   const [activeTab, setActiveTab] = useState('send') // 'send' | 'bridge'
   const [view, setView] = useState('form')            // 'form' | 'confirm' | 'success'
 
-  const [sourceChainKey, setSourceChainKey] = useState('arc')
+  const [sourceChainKey, setSourceChainKey] = useState('ethereum')
   const [bridgeToKey, setBridgeToKey] = useState('arc')
   const [chainBalance, setChainBalance] = useState(arcBalance)
+  const [destBalance, setDestBalance] = useState('0.000000')
   const [eurcBalance, setEurcBalance] = useState('0.000000')
   const [cirbtcBalance, setCirbtcBalance] = useState('0.00000000')
   const [switchingChain, setSwitchingChain] = useState(false)
@@ -63,7 +58,6 @@ export default function TestnetSend() {
   const [showTokenModal, setShowTokenModal] = useState(false)
   const [showFromModal, setShowFromModal] = useState(false)
   const [showToModal, setShowToModal] = useState(false)
-  const [boxesSwapped, setBoxesSwapped] = useState(false)
 
   const [recipient, setRecipient] = useState('')
   const [useOwnAddress, setUseOwnAddress] = useState(false)
@@ -82,12 +76,13 @@ export default function TestnetSend() {
   const [cctpDoneSteps, setCctpDoneSteps] = useState([])
 
   const selectedChain = EVM_CHAINS[sourceChainKey]
-  const isCCTP = selectedChain && selectedChain.useCCTP
+  const destChain = EVM_CHAINS[bridgeToKey]
+  // Every Bridge-tab transfer goes through CCTP now, in either direction —
+  // the Send tab (Arc-native/EURC/cirBTC) is the only non-CCTP path.
+  const isCCTP = activeTab === 'bridge'
   const tokenSupported = selectedToken === 'USDC' || selectedToken === 'EURC' || selectedToken === 'cirBTC'
   const activeBalance = selectedToken === 'EURC' ? eurcBalance : selectedToken === 'cirBTC' ? cirbtcBalance : chainBalance
 
-  const fromNetworks = ALL_NETWORKS.map(n => ({ ...n, enabled: FROM_ENABLED.includes(n.key) }))
-  const toNetworks = ALL_NETWORKS.map(n => ({ ...n, enabled: TO_ENABLED.includes(n.key) }))
   const sendTokens = [
     { symbol: 'USDC',   name: 'USD Coin',       balance: chainBalance,  enabled: true },
     { symbol: 'EURC',   name: 'Euro Coin',      balance: eurcBalance,   enabled: true },
@@ -110,16 +105,27 @@ export default function TestnetSend() {
     }
   }
 
-  // Purely visual — flips which box (Bridge from / Bridge to) is on top.
-  // The underlying source/destination chains are unchanged; this doesn't
-  // attempt an actual reverse-direction bridge.
-  const toggleBoxesSwapped = () => setBoxesSwapped(s => !s)
+  // Real swap: the wallet's active network switches to whatever becomes the
+  // new source, and source/destination genuinely swap — both directions are
+  // supported (Circle's App Kit docs show Arc_Testnet as a valid `from`).
+  const handleSwapDirection = () => {
+    const oldFrom = sourceChainKey
+    const oldTo = bridgeToKey
+    handleChainSelect(oldTo)
+    setBridgeToKey(oldFrom)
+  }
 
   // Keep the wallet network in sync with the active tab
   useEffect(() => {
     if (!isConnected) return
-    if (activeTab === 'send' && sourceChainKey !== 'arc') handleChainSelect('arc')
-    if (activeTab === 'bridge' && sourceChainKey === 'arc') handleChainSelect('ethereum')
+    if (activeTab === 'send' && sourceChainKey !== 'arc') {
+      // Send tab always operates on Arc directly — but don't clobber the
+      // Bridge tab's chosen source chain, just switch the wallet.
+      switchToChain('arc').catch(() => {})
+    }
+    if (activeTab === 'bridge' && sourceChainKey === bridgeToKey) {
+      setBridgeToKey(sourceChainKey === 'arc' ? 'ethereum' : 'arc')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isConnected])
 
@@ -127,6 +133,11 @@ export default function TestnetSend() {
     if (!account) return
     getUsdcBalance(sourceChainKey, account).then(setChainBalance)
   }, [sourceChainKey, account, arcBalance])
+
+  useEffect(() => {
+    if (!account) return
+    getUsdcBalance(bridgeToKey, account).then(setDestBalance)
+  }, [bridgeToKey, account, arcBalance])
 
   useEffect(() => {
     if (!account) return
@@ -146,13 +157,13 @@ export default function TestnetSend() {
   const handleStatusUpdate = (msg) => {
     setCctpStatus(msg)
     if (msg.includes('Approving')) { setCctpActiveStep(0); setCctpDoneSteps([]) }
-    else if (msg.includes('Approval confirmed')) { setCctpDoneSteps(['approve']); setCctpActiveStep(1) }
+    else if (msg.includes('approved')) { setCctpDoneSteps(['approve']); setCctpActiveStep(1) }
     else if (msg.includes('Burning')) { setCctpActiveStep(1) }
-    else if (msg.includes('burned on')) { setCctpDoneSteps(p => [...p, 'burn']); setCctpActiveStep(2) }
+    else if (msg.includes('burned')) { setCctpDoneSteps(p => [...p, 'burn']); setCctpActiveStep(2) }
     else if (msg.includes('attestation')) { setCctpActiveStep(2) }
     else if (msg.includes('Attestation received')) { setCctpDoneSteps(p => [...p, 'attest']); setCctpActiveStep(3) }
-    else if (msg.includes('Switching to Arc') || msg.includes('minting')) { setCctpActiveStep(3) }
-    else if (msg.includes('minted on Arc')) { setCctpDoneSteps(p => [...p, 'mint']); setCctpActiveStep(-1) }
+    else if (msg.includes('Minting')) { setCctpActiveStep(3) }
+    else if (msg.includes('minted')) { setCctpDoneSteps(p => [...p, 'mint']); setCctpActiveStep(-1) }
   }
 
   const handleSend = async () => {
@@ -162,15 +173,28 @@ export default function TestnetSend() {
     setCctpActiveStep(-1)
     setCctpDoneSteps([])
     try {
-      const result = activeTab === 'send' && selectedToken === 'EURC'
-        ? await sendEurcOnArc({ from: account, to: recipient, amount })
-        : activeTab === 'send' && selectedToken === 'cirBTC'
-        ? await sendCirbtcOnArc({ from: account, to: recipient, amount })
-        : await sendUsdcOnChain(sourceChainKey, { to: recipient, amount }, handleStatusUpdate)
+      let result
+      if (activeTab === 'send' && selectedToken === 'EURC') {
+        result = await sendEurcOnArc({ from: account, to: recipient, amount })
+      } else if (activeTab === 'send' && selectedToken === 'cirBTC') {
+        result = await sendCirbtcOnArc({ from: account, to: recipient, amount })
+      } else if (activeTab === 'bridge') {
+        result = await bridgeUsdcViaAppKit(
+          { fromChainKey: sourceChainKey, toChainKey: bridgeToKey, from: account, to: recipient, amount },
+          handleStatusUpdate
+        )
+      } else {
+        result = await sendUsdcOnChain(sourceChainKey, { to: recipient, amount }, handleStatusUpdate)
+      }
       await recordTransaction(result, account)
       await loadTransactions(account)
       if (selectedToken === 'EURC') setEurcBalance(await getEurcBalance(account))
       else if (selectedToken === 'cirBTC') setCirbtcBalance(await getCirbtcBalance(account))
+      else if (activeTab === 'bridge') {
+        setChainBalance(await getUsdcBalance(sourceChainKey, account))
+        setDestBalance(await getUsdcBalance(bridgeToKey, account))
+        if (bridgeToKey === 'arc' || sourceChainKey === 'arc') refreshBalance()
+      }
       else if (sourceChainKey === 'arc') refreshBalance()
       else setChainBalance(await getUsdcBalance(sourceChainKey, account))
       setTxResult(result)
@@ -201,7 +225,8 @@ export default function TestnetSend() {
     : null
   const isValidAddress = recipient && recipient.startsWith('0x') && recipient.length === 42
   const isValidAmount = amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(validationBalance)
-  const canReview = isValidAddress && isValidAmount && !switchingChain && tokenSupported
+  const sameChainPicked = activeTab === 'bridge' && sourceChainKey === bridgeToKey
+  const canReview = isValidAddress && isValidAmount && !switchingChain && tokenSupported && !sameChainPicked
 
   const explorerTxUrl = (hash) => selectedChain ? selectedChain.explorerUrl + '/tx/' + hash : arcScanTx(hash)
 
@@ -260,7 +285,10 @@ export default function TestnetSend() {
 
   const toBox = (
     <div className="bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
-      <p className="text-[10px] tracking-widest text-[#8892a0] mb-2">BRIDGE TO</p>
+      <div className="flex items-center justify-between flex-wrap gap-y-1 mb-2">
+        <span className="text-[10px] tracking-widest text-[#8892a0]">BRIDGE TO</span>
+        <span className="text-[10px] text-[#8892a0]">Balance: {destBalance} USDC</span>
+      </div>
       <div className="flex items-center justify-between gap-3">
         <button
           onClick={() => setShowToModal(true)}
@@ -269,11 +297,20 @@ export default function TestnetSend() {
           <CoinIcon symbol="USDC" size={20} />
           USDC <span className="text-[#8892a0] text-xs">⌄</span>
         </button>
-        <span className="flex-1 min-w-0 text-right text-2xl font-bold font-['Space_Grotesk'] text-[#8892a0]">
-          {amount || '0.00'}
-        </span>
+        <input
+          type="number"
+          placeholder="0.00"
+          value={amount}
+          onChange={e => {
+            const val = parseFloat(e.target.value)
+            if (e.target.value === '' || e.target.value === '0') setAmount('')
+            else if (!isNaN(val) && val > 0) setAmount(e.target.value)
+          }}
+          min="0"
+          className="flex-1 min-w-0 bg-transparent text-white text-2xl font-bold outline-none font-['Space_Grotesk'] text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0"
+        />
       </div>
-      <p className="text-[10px] text-[#556] mt-1">⬡ Arc Testnet</p>
+      <p className="text-[10px] text-[#556] mt-1">{destChain?.icon} {destChain?.name}</p>
     </div>
   )
 
@@ -472,28 +509,39 @@ export default function TestnetSend() {
                     🕓
                   </Link>
                   <button
-                    title="Refresh balance"
-                    onClick={() => account && getUsdcBalance(sourceChainKey, account).then(setChainBalance)}
+                    title="Refresh balances"
+                    onClick={() => account && Promise.all([
+                      getUsdcBalance(sourceChainKey, account).then(setChainBalance),
+                      getUsdcBalance(bridgeToKey, account).then(setDestBalance),
+                    ])}
                     className="w-8 h-8 rounded-lg border border-[#1e2530] flex items-center justify-center text-[#8892a0] hover:text-white hover:border-[#00D4FF] transition-colors text-sm">
                     🔄
                   </button>
                 </div>
 
-                {/* Bridge from / Bridge to — order flips via boxesSwapped (visual only) */}
-                {boxesSwapped ? toBox : fromBox}
+                {/* BRIDGE FROM is always top, BRIDGE TO always bottom. The
+                    arrow performs a real swap — both directions genuinely
+                    work, since App Kit supports Arc as either side. */}
+                {fromBox}
 
                 <div className="flex justify-center -my-2.5 relative z-10">
                   <button
-                    onClick={toggleBoxesSwapped}
-                    title="Swap box positions"
+                    onClick={handleSwapDirection}
+                    title="Swap direction"
                     className="w-8 h-8 rounded-full bg-[#0f1822] border border-[#1e2530] flex items-center justify-center text-[#8892a0] hover:text-[#00D4FF] hover:border-[#00D4FF] active:scale-90 transition-all duration-300"
-                    style={{ transform: boxesSwapped ? 'rotate(180deg)' : 'rotate(0deg)' }}
                   >
                     ↓↑
                   </button>
                 </div>
 
-                {boxesSwapped ? fromBox : toBox}
+                {toBox}
+
+                {sameChainPicked && (
+                  <div className="mt-2.5 bg-[#1a1408] border border-[#3d2f10] rounded-lg px-3 py-2 flex items-start gap-2">
+                    <span className="text-sm">🚧</span>
+                    <p className="text-xs text-[#e8c374]">Source and destination can't be the same chain.</p>
+                  </div>
+                )}
 
                 {/* Receiving wallet */}
                 {!showWalletInput ? (
@@ -503,7 +551,7 @@ export default function TestnetSend() {
                 ) : (
                   <div className="mt-2 bg-[#0D1117] border border-[#1e2530] rounded-xl px-4 py-3">
                     <div className="flex items-center justify-between flex-wrap gap-y-1 mb-1.5">
-                      <span className="text-[10px] tracking-widest text-[#8892a0]">RECEIVING WALLET (ARC TESTNET)</span>
+                      <span className="text-[10px] tracking-widest text-[#8892a0]">RECEIVING WALLET ({destChain?.name?.toUpperCase()})</span>
                       <button onClick={() => { setRecipient(account || ''); setUseOwnAddress(true) }}
                         className="text-[10px] text-[#00D4FF] hover:underline">
                         Use my address
@@ -547,7 +595,7 @@ export default function TestnetSend() {
                   </div>
                   <div>
                     <p className="text-[9px] text-[#8892a0] mb-0.5">NETWORK FEE</p>
-                    <p className="text-xs text-white font-semibold">ETH gas</p>
+                    <p className="text-xs text-white font-semibold">Gas on {selectedChain?.name?.split(' ')[0]}</p>
                   </div>
                 </div>
 
@@ -569,7 +617,7 @@ export default function TestnetSend() {
                 </p>
                 <div className="space-y-3 mb-5">
                   {[
-                    { l: 'Route',   v: isCCTP ? selectedChain?.name + ' → Arc (CCTP)' : 'Arc Testnet (direct)' },
+                    { l: 'Route',   v: isCCTP ? selectedChain?.name + ' → ' + destChain?.name + ' (CCTP)' : 'Arc Testnet (direct)' },
                     { l: 'From',    v: shortAddr(account), mono: true },
                     { l: 'To',      v: shortAddr(recipient), mono: true },
                     { l: 'Amount',  v: amount + ' ' + (activeTab === 'send' ? selectedToken : 'USDC') },
@@ -642,7 +690,7 @@ export default function TestnetSend() {
                   {txResult.cctpBridge ? 'Bridge ' : 'Transfer '}<span className="text-green-400">confirmed</span>
                 </h2>
                 <p className="text-[#8892a0] text-xs mb-6">
-                  {txResult.cctpBridge ? txResult.sourceChain + ' → Arc Testnet via CCTP' : 'Confirmed on Arc Testnet'}
+                  {txResult.cctpBridge ? txResult.sourceChain + ' → ' + txResult.destinationChain + ' via CCTP' : 'Confirmed on Arc Testnet'}
                   {' · '}{(txResult.settlementTime / 1000).toFixed(1)}s
                 </p>
 
@@ -666,7 +714,7 @@ export default function TestnetSend() {
                   </div>
                   {txResult.mintTxHash && (
                     <div>
-                      <p className="text-[10px] text-[#8892a0] mb-1">MINT TX (ARC TESTNET)</p>
+                      <p className="text-[10px] text-[#8892a0] mb-1">MINT TX ({(txResult.destinationChain || 'ARC TESTNET').toUpperCase()})</p>
                       <a href={arcScanTx(txResult.mintTxHash)} target="_blank" rel="noreferrer"
                         className="text-[10px] text-[#00D4FF] font-mono break-all hover:underline">
                         {txResult.mintTxHash}
@@ -720,7 +768,7 @@ export default function TestnetSend() {
         open={showFromModal}
         onClose={() => setShowFromModal(false)}
         title="Bridge from"
-        networks={fromNetworks}
+        networks={ALL_NETWORKS}
         activeKey={sourceChainKey}
         onSelect={handleChainSelect}
       />
@@ -728,7 +776,7 @@ export default function TestnetSend() {
         open={showToModal}
         onClose={() => setShowToModal(false)}
         title="Bridge to"
-        networks={toNetworks}
+        networks={ALL_NETWORKS}
         activeKey={bridgeToKey}
         onSelect={setBridgeToKey}
       />
