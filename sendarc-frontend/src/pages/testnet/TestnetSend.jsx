@@ -45,10 +45,17 @@ export default function TestnetSend() {
   const [activeTab, setActiveTab] = useState('send') // 'send' | 'bridge'
   const [view, setView] = useState('form')            // 'form' | 'confirm' | 'success'
 
+  // sourceChainKey / bridgeToKey belong to the BRIDGE tab only. The Send
+  // tab always operates on Arc directly and uses `arcBalance` from the
+  // hook — it never reads chainBalance, so swapping bridge direction can't
+  // affect what Send shows (this was the bug: Send used to share
+  // chainBalance with Bridge's "from" side, so it went to 0 whenever
+  // Bridge's source wasn't Arc).
   const [sourceChainKey, setSourceChainKey] = useState('ethereum')
   const [bridgeToKey, setBridgeToKey] = useState('arc')
-  const [chainBalance, setChainBalance] = useState(arcBalance)
+  const [chainBalance, setChainBalance] = useState('0.000000')
   const [destBalance, setDestBalance] = useState('0.000000')
+  const [arcUsdcBalance, setArcUsdcBalance] = useState('0.000000')
   const [eurcBalance, setEurcBalance] = useState('0.000000')
   const [cirbtcBalance, setCirbtcBalance] = useState('0.00000000')
   const [switchingChain, setSwitchingChain] = useState(false)
@@ -81,10 +88,14 @@ export default function TestnetSend() {
   // the Send tab (Arc-native/EURC/cirBTC) is the only non-CCTP path.
   const isCCTP = activeTab === 'bridge'
   const tokenSupported = selectedToken === 'USDC' || selectedToken === 'EURC' || selectedToken === 'cirBTC'
-  const activeBalance = selectedToken === 'EURC' ? eurcBalance : selectedToken === 'cirBTC' ? cirbtcBalance : chainBalance
+  // Send tab's USDC balance is arcUsdcBalance — a dedicated fetch this
+  // component owns and refreshes itself, not the wallet hook's `balance`
+  // field (which turned out not to refresh proactively on its own) and
+  // never chainBalance (which belongs to whatever chain Bridge has selected).
+  const activeBalance = selectedToken === 'EURC' ? eurcBalance : selectedToken === 'cirBTC' ? cirbtcBalance : arcUsdcBalance
 
   const sendTokens = [
-    { symbol: 'USDC',   name: 'USD Coin',       balance: chainBalance,  enabled: true },
+    { symbol: 'USDC',   name: 'USD Coin',       balance: arcUsdcBalance, enabled: true },
     { symbol: 'EURC',   name: 'Euro Coin',      balance: eurcBalance,   enabled: true },
     { symbol: 'cirBTC', name: 'Circle Bitcoin', balance: cirbtcBalance, enabled: true },
   ]
@@ -115,13 +126,17 @@ export default function TestnetSend() {
     setBridgeToKey(oldFrom)
   }
 
-  // Keep the wallet network in sync with the active tab
+  // Keep the wallet network in sync with the active tab. This only ever
+  // switches the WALLET's network — it never touches sourceChainKey/
+  // bridgeToKey (those are Bridge-tab-only state), so Bridge's chosen
+  // chains survive a trip to the Send tab and back. Also refetches Arc's
+  // USDC balance directly here, so landing on Send always shows a current
+  // number instead of whatever it last happened to be.
   useEffect(() => {
     if (!isConnected) return
-    if (activeTab === 'send' && sourceChainKey !== 'arc') {
-      // Send tab always operates on Arc directly — but don't clobber the
-      // Bridge tab's chosen source chain, just switch the wallet.
+    if (activeTab === 'send') {
       switchToChain('arc').catch(() => {})
+      if (account) getUsdcBalance('arc', account).then(setArcUsdcBalance)
     }
     if (activeTab === 'bridge' && sourceChainKey === bridgeToKey) {
       setBridgeToKey(sourceChainKey === 'arc' ? 'ethereum' : 'arc')
@@ -129,6 +144,15 @@ export default function TestnetSend() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isConnected])
 
+  // Dedicated Arc USDC balance fetch — fires as soon as an account is
+  // connected, independent of the wallet hook's own refresh timing and
+  // independent of anything happening on the Bridge tab.
+  useEffect(() => {
+    if (!account) return
+    getUsdcBalance('arc', account).then(setArcUsdcBalance)
+  }, [account])
+
+  // Bridge tab's "from" balance — only fetched/used when on the Bridge tab.
   useEffect(() => {
     if (!account) return
     getUsdcBalance(sourceChainKey, account).then(setChainBalance)
@@ -184,7 +208,9 @@ export default function TestnetSend() {
           handleStatusUpdate
         )
       } else {
-        result = await sendUsdcOnChain(sourceChainKey, { to: recipient, amount }, handleStatusUpdate)
+        // Send tab, USDC — always Arc, never sourceChainKey (that belongs
+        // to the Bridge tab and could be any of the 10 chains).
+        result = await sendUsdcOnChain('arc', { to: recipient, amount }, handleStatusUpdate)
       }
       await recordTransaction(result, account)
       await loadTransactions(account)
@@ -193,10 +219,16 @@ export default function TestnetSend() {
       else if (activeTab === 'bridge') {
         setChainBalance(await getUsdcBalance(sourceChainKey, account))
         setDestBalance(await getUsdcBalance(bridgeToKey, account))
-        if (bridgeToKey === 'arc' || sourceChainKey === 'arc') refreshBalance()
+        if (bridgeToKey === 'arc' || sourceChainKey === 'arc') {
+          refreshBalance()
+          setArcUsdcBalance(await getUsdcBalance('arc', account))
+        }
       }
-      else if (sourceChainKey === 'arc') refreshBalance()
-      else setChainBalance(await getUsdcBalance(sourceChainKey, account))
+      else {
+        // Send tab USDC — always Arc
+        refreshBalance()
+        setArcUsdcBalance(await getUsdcBalance('arc', account))
+      }
       setTxResult(result)
       setView('success')
     } catch (err) {
