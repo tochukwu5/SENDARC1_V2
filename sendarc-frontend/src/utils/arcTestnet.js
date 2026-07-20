@@ -219,17 +219,34 @@ export async function switchToChain(chainKey) {
   }
 }
 
+// Plain JSON-RPC POST to a chain's own public endpoint — deliberately NOT
+// routed through window.ethereum. MetaMask's eth_call/eth_getBalance always
+// query whichever network the wallet is CURRENTLY connected to, regardless
+// of the `to` address you pass in — so asking for Ethereum Sepolia's USDC
+// balance while the wallet is sitting on Arc silently queries Arc instead
+// and returns 0. Hitting each chain's real RPC directly sidesteps that
+// entirely: balance reads are correct no matter what network is active.
+async function rpcRequest(rpcUrl, method, params) {
+  const res = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  const json = await res.json()
+  if (json.error) throw new Error(json.error.message || 'RPC error')
+  return json.result
+}
+
 export async function getUsdcBalance(chainKey, address) {
-  if (!window.ethereum) return '0'
   const chain = EVM_CHAINS[chainKey]
   if (!chain) return '0'
   try {
     if (chainKey === 'arc') {
-      const raw = await window.ethereum.request({ method: 'eth_getBalance', params: [address, 'latest'] })
+      const raw = await rpcRequest(chain.rpcUrl, 'eth_getBalance', [address, 'latest'])
       return (parseInt(raw, 16) / 1e18).toFixed(6)
     } else {
       const paddedAddr = address.slice(2).toLowerCase().padStart(64, '0')
-      const result = await window.ethereum.request({ method: 'eth_call', params: [{ to: chain.usdcAddress, data: '0x70a08231' + paddedAddr }, 'latest'] })
+      const result = await rpcRequest(chain.rpcUrl, 'eth_call', [{ to: chain.usdcAddress, data: '0x70a08231' + paddedAddr }, 'latest'])
       if (!result || result === '0x') return '0.000000'
       return (parseInt(result, 16) / 1_000_000).toFixed(6)
     }
@@ -238,14 +255,11 @@ export async function getUsdcBalance(chainKey, address) {
 
 // Generic ERC-20 balanceOf(address) reader — used for EURC and any future
 // standard ERC-20 token on Arc (not the native-USDC special case above).
+// Always queries Arc's own RPC directly, same reasoning as getUsdcBalance.
 export async function getErc20Balance(tokenAddress, address, decimals = 6) {
-  if (!window.ethereum) return '0.000000'
   try {
     const paddedAddr = address.slice(2).toLowerCase().padStart(64, '0')
-    const result = await window.ethereum.request({
-      method: 'eth_call',
-      params: [{ to: tokenAddress, data: '0x70a08231' + paddedAddr }, 'latest'],
-    })
+    const result = await rpcRequest(ARC_TESTNET.rpcUrl, 'eth_call', [{ to: tokenAddress, data: '0x70a08231' + paddedAddr }, 'latest'])
     if (!result || result === '0x') return '0.000000'
     return (parseInt(result, 16) / Math.pow(10, decimals)).toFixed(6)
   } catch { return '0.000000' }
@@ -261,17 +275,13 @@ export function getEurcBalance(address) {
 const decimalsCache = {}
 export async function getTokenDecimals(tokenAddress) {
   if (decimalsCache[tokenAddress] !== undefined) return decimalsCache[tokenAddress]
-  const result = await window.ethereum.request({
-    method: 'eth_call',
-    params: [{ to: tokenAddress, data: '0x313ce567' }, 'latest'], // decimals()
-  })
+  const result = await rpcRequest(ARC_TESTNET.rpcUrl, 'eth_call', [{ to: tokenAddress, data: '0x313ce567' }, 'latest'])
   const decimals = result && result !== '0x' ? parseInt(result, 16) : 18
   decimalsCache[tokenAddress] = decimals
   return decimals
 }
 
 export async function getCirbtcBalance(address) {
-  if (!window.ethereum) return '0.00000000'
   const decimals = await getTokenDecimals(ARC_TESTNET.cirbtcAddress)
   return getErc20Balance(ARC_TESTNET.cirbtcAddress, address, decimals)
 }
@@ -351,6 +361,8 @@ export async function bridgeUsdcViaAppKit({ fromChainKey, toChainKey, from, to, 
       status: 'confirmed',
       sourceChain: fromChain.name,
       destinationChain: toChain.name,
+      sourceChainKey: fromChainKey,
+      destinationChainKey: toChainKey,
       network: fromChain.name + ' → ' + toChain.name + ' (CCTP v2)',
       chainId: fromChain.id,
       cctpBridge: true,
@@ -397,6 +409,8 @@ export async function sendUsdcNativeArc({ from, to, amount }) {
     status: 'confirmed',
     sourceChain: 'Arc Testnet',
     destinationChain: 'Arc Testnet',
+    sourceChainKey: 'arc',
+    destinationChainKey: 'arc',
     network: 'Arc Testnet',
     chainId: ARC_TESTNET.id,
     cctpBridge: false,
@@ -463,6 +477,8 @@ export async function sendUsdcViaSendArcRouter({ from, to, amount }) {
     status: 'confirmed',
     sourceChain: 'Arc Testnet',
     destinationChain: 'Arc Testnet',
+    sourceChainKey: 'arc',
+    destinationChainKey: 'arc',
     network: 'Arc Testnet (via SendArcRouter)',
     chainId: ARC_TESTNET.id,
     cctpBridge: false,
@@ -506,6 +522,8 @@ export async function sendEurcOnArc({ from, to, amount }) {
     status: 'confirmed',
     sourceChain: 'Arc Testnet',
     destinationChain: 'Arc Testnet',
+    sourceChainKey: 'arc',
+    destinationChainKey: 'arc',
     network: 'Arc Testnet',
     chainId: ARC_TESTNET.id,
     cctpBridge: false,
@@ -549,6 +567,8 @@ export async function sendCirbtcOnArc({ from, to, amount }) {
     status: 'confirmed',
     sourceChain: 'Arc Testnet',
     destinationChain: 'Arc Testnet',
+    sourceChainKey: 'arc',
+    destinationChainKey: 'arc',
     network: 'Arc Testnet',
     chainId: ARC_TESTNET.id,
     cctpBridge: false,

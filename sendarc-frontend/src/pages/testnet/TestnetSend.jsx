@@ -260,7 +260,17 @@ export default function TestnetSend() {
   const sameChainPicked = activeTab === 'bridge' && sourceChainKey === bridgeToKey
   const canReview = isValidAddress && isValidAmount && !switchingChain && tokenSupported && !sameChainPicked
 
-  const explorerTxUrl = (hash) => selectedChain ? selectedChain.explorerUrl + '/tx/' + hash : arcScanTx(hash)
+  // Reads the chain off the transaction result itself (sourceChainKey was
+  // stamped on it at creation time in arcTestnet.js) — never off live UI
+  // state. That's deliberate: sourceChainKey in this component belongs to
+  // the Bridge tab and keeps changing as you use it, so a Send-tab result
+  // must never depend on it or its explorer link would silently drift to
+  // whatever chain Bridge happens to have selected later.
+  const explorerTxUrl = (hash, result) => {
+    const key = result?.sourceChainKey || 'arc'
+    const chain = EVM_CHAINS[key]
+    return chain ? chain.explorerUrl + '/tx/' + hash : arcScanTx(hash)
+  }
 
   const fillAmount = (val) => {
     const capped = Math.min(val, parseFloat(chainBalance) || 0)
@@ -739,7 +749,7 @@ export default function TestnetSend() {
                   ))}
                   <div className="pt-1">
                     <p className="text-[10px] text-[#8892a0] mb-1">TX HASH</p>
-                    <a href={explorerTxUrl(txResult.hash)} target="_blank" rel="noreferrer"
+                    <a href={explorerTxUrl(txResult.hash, txResult)} target="_blank" rel="noreferrer"
                       className="text-[10px] text-[#00D4FF] font-mono break-all hover:underline">
                       {txResult.hash}
                     </a>
@@ -747,7 +757,7 @@ export default function TestnetSend() {
                   {txResult.mintTxHash && (
                     <div>
                       <p className="text-[10px] text-[#8892a0] mb-1">MINT TX ({(txResult.destinationChain || 'ARC TESTNET').toUpperCase()})</p>
-                      <a href={arcScanTx(txResult.mintTxHash)} target="_blank" rel="noreferrer"
+                      <a href={explorerTxUrl(txResult.mintTxHash, { sourceChainKey: txResult.destinationChainKey })} target="_blank" rel="noreferrer"
                         className="text-[10px] text-[#00D4FF] font-mono break-all hover:underline">
                         {txResult.mintTxHash}
                       </a>
@@ -756,7 +766,7 @@ export default function TestnetSend() {
                 </div>
 
                 <div className="flex gap-3 mb-3">
-                  <a href={explorerTxUrl(txResult.hash)} target="_blank" rel="noreferrer"
+                  <a href={explorerTxUrl(txResult.hash, txResult)} target="_blank" rel="noreferrer"
                     className="flex-1 border border-[#00D4FF] text-[#00D4FF] py-2.5 rounded-xl text-sm font-['Space_Grotesk'] font-bold hover:bg-[#0a2030] transition-all text-center">
                     View on Explorer ↗
                   </a>
