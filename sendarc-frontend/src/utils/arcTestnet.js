@@ -226,15 +226,51 @@ export async function switchToChain(chainKey) {
 // balance while the wallet is sitting on Arc silently queries Arc instead
 // and returns 0. Hitting each chain's real RPC directly sidesteps that
 // entirely: balance reads are correct no matter what network is active.
-async function rpcRequest(rpcUrl, method, params) {
-  const res = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
-  const json = await res.json()
-  if (json.error) throw new Error(json.error.message || 'RPC error')
-  return json.result
+// Plain JSON-RPC POST to a chain's own public endpoint, with retries — public
+// endpoints (sepolia.org etc.) are shared/free and occasionally flaky or
+// rate-limited, so a single failed attempt shouldn't read as "zero balance."
+async function rpcRequest(rpcUrl, method, params, attempts = 3) {
+  let lastErr
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      })
+      const json = await res.json()
+      if (json.error) throw new Error(json.error.message || 'RPC error')
+      return json.result
+    } catch (err) {
+      lastErr = err
+      if (i < attempts - 1) await new Promise(r => setTimeout(r, 400 * (i + 1)))
+    }
+  }
+  throw lastErr
+}
+
+// Same request, routed through window.ethereum instead of a public endpoint —
+// used only when the wallet is confirmed to already be on the target chain,
+// since MetaMask's own RPC connection is generally more reliable than a free
+// public one, and going through it avoids the flakiness entirely when we can.
+async function walletChainMatches(chainIdHex) {
+  if (!window.ethereum) return false
+  try {
+    const current = await window.ethereum.request({ method: 'eth_chainId' })
+    return current?.toLowerCase() === chainIdHex.toLowerCase()
+  } catch { return false }
+}
+
+async function readChain(chain, method, params) {
+  if (await walletChainMatches(chain.chainIdHex)) {
+    try {
+      return await window.ethereum.request({ method, params })
+    } catch {
+      // Wallet call failed even though it's on the right chain (rare) —
+      // fall through to the public RPC instead of giving up.
+    }
+  }
+  return rpcRequest(chain.rpcUrl, method, params)
 }
 
 export async function getUsdcBalance(chainKey, address) {
@@ -242,27 +278,31 @@ export async function getUsdcBalance(chainKey, address) {
   if (!chain) return '0'
   try {
     if (chainKey === 'arc') {
-      const raw = await rpcRequest(chain.rpcUrl, 'eth_getBalance', [address, 'latest'])
+      const raw = await readChain(chain, 'eth_getBalance', [address, 'latest'])
       return (parseInt(raw, 16) / 1e18).toFixed(6)
     } else {
       const paddedAddr = address.slice(2).toLowerCase().padStart(64, '0')
-      const result = await rpcRequest(chain.rpcUrl, 'eth_call', [{ to: chain.usdcAddress, data: '0x70a08231' + paddedAddr }, 'latest'])
+      const result = await readChain(chain, 'eth_call', [{ to: chain.usdcAddress, data: '0x70a08231' + paddedAddr }, 'latest'])
       if (!result || result === '0x') return '0.000000'
       return (parseInt(result, 16) / 1_000_000).toFixed(6)
     }
-  } catch { return '0' }
+  } catch {
+    // Genuine failure after retries — return null (not '0') so callers can
+    // tell "couldn't check" apart from "confirmed empty," instead of both
+    // looking identical on screen.
+    return null
+  }
 }
 
 // Generic ERC-20 balanceOf(address) reader — used for EURC and any future
 // standard ERC-20 token on Arc (not the native-USDC special case above).
-// Always queries Arc's own RPC directly, same reasoning as getUsdcBalance.
 export async function getErc20Balance(tokenAddress, address, decimals = 6) {
   try {
     const paddedAddr = address.slice(2).toLowerCase().padStart(64, '0')
-    const result = await rpcRequest(ARC_TESTNET.rpcUrl, 'eth_call', [{ to: tokenAddress, data: '0x70a08231' + paddedAddr }, 'latest'])
+    const result = await readChain(EVM_CHAINS.arc, 'eth_call', [{ to: tokenAddress, data: '0x70a08231' + paddedAddr }, 'latest'])
     if (!result || result === '0x') return '0.000000'
     return (parseInt(result, 16) / Math.pow(10, decimals)).toFixed(6)
-  } catch { return '0.000000' }
+  } catch { return null }
 }
 
 export function getEurcBalance(address) {
@@ -275,7 +315,7 @@ export function getEurcBalance(address) {
 const decimalsCache = {}
 export async function getTokenDecimals(tokenAddress) {
   if (decimalsCache[tokenAddress] !== undefined) return decimalsCache[tokenAddress]
-  const result = await rpcRequest(ARC_TESTNET.rpcUrl, 'eth_call', [{ to: tokenAddress, data: '0x313ce567' }, 'latest'])
+  const result = await readChain(EVM_CHAINS.arc, 'eth_call', [{ to: tokenAddress, data: '0x313ce567' }, 'latest'])
   const decimals = result && result !== '0x' ? parseInt(result, 16) : 18
   decimalsCache[tokenAddress] = decimals
   return decimals

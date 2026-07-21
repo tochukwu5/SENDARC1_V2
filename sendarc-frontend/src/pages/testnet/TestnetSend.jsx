@@ -100,6 +100,12 @@ export default function TestnetSend() {
     { symbol: 'cirBTC', name: 'Circle Bitcoin', balance: cirbtcBalance, enabled: true },
   ]
 
+  // getUsdcBalance/getEurcBalance/getCirbtcBalance return null on a genuine
+  // fetch failure (after retries) rather than '0' — this keeps whatever
+  // balance was last successfully shown instead of flashing to zero, which
+  // was indistinguishable from an actually-empty wallet.
+  const applyBalance = (setter, value) => { if (value !== null && value !== undefined) setter(value) }
+
   const handleChainSelect = async (chainKey) => {
     if (chainKey === sourceChainKey) return
     setSwitchingChain(true)
@@ -108,7 +114,7 @@ export default function TestnetSend() {
     try {
       await switchToChain(chainKey)
       setSourceChainKey(chainKey)
-      if (account) setChainBalance(await getUsdcBalance(chainKey, account))
+      if (account) applyBalance(setChainBalance, await getUsdcBalance(chainKey, account))
     } catch (err) {
       setSwitchError(err.message || 'Could not switch network')
     } finally {
@@ -136,7 +142,7 @@ export default function TestnetSend() {
     if (!isConnected) return
     if (activeTab === 'send') {
       switchToChain('arc').catch(() => {})
-      if (account) getUsdcBalance('arc', account).then(setArcUsdcBalance)
+      if (account) getUsdcBalance('arc', account).then(v => applyBalance(setArcUsdcBalance, v))
     }
     if (activeTab === 'bridge' && sourceChainKey === bridgeToKey) {
       setBridgeToKey(sourceChainKey === 'arc' ? 'ethereum' : 'arc')
@@ -149,24 +155,24 @@ export default function TestnetSend() {
   // independent of anything happening on the Bridge tab.
   useEffect(() => {
     if (!account) return
-    getUsdcBalance('arc', account).then(setArcUsdcBalance)
+    getUsdcBalance('arc', account).then(v => applyBalance(setArcUsdcBalance, v))
   }, [account])
 
   // Bridge tab's "from" balance — only fetched/used when on the Bridge tab.
   useEffect(() => {
     if (!account) return
-    getUsdcBalance(sourceChainKey, account).then(setChainBalance)
+    getUsdcBalance(sourceChainKey, account).then(v => applyBalance(setChainBalance, v))
   }, [sourceChainKey, account, arcBalance])
 
   useEffect(() => {
     if (!account) return
-    getUsdcBalance(bridgeToKey, account).then(setDestBalance)
+    getUsdcBalance(bridgeToKey, account).then(v => applyBalance(setDestBalance, v))
   }, [bridgeToKey, account, arcBalance])
 
   useEffect(() => {
     if (!account) return
-    getEurcBalance(account).then(setEurcBalance)
-    getCirbtcBalance(account).then(setCirbtcBalance)
+    getEurcBalance(account).then(v => applyBalance(setEurcBalance, v))
+    getCirbtcBalance(account).then(v => applyBalance(setCirbtcBalance, v))
   }, [account, arcBalance])
 
   // Default the recipient to the connected wallet until the person expands
@@ -214,20 +220,20 @@ export default function TestnetSend() {
       }
       await recordTransaction(result, account)
       await loadTransactions(account)
-      if (selectedToken === 'EURC') setEurcBalance(await getEurcBalance(account))
-      else if (selectedToken === 'cirBTC') setCirbtcBalance(await getCirbtcBalance(account))
+      if (selectedToken === 'EURC') applyBalance(setEurcBalance, await getEurcBalance(account))
+      else if (selectedToken === 'cirBTC') applyBalance(setCirbtcBalance, await getCirbtcBalance(account))
       else if (activeTab === 'bridge') {
-        setChainBalance(await getUsdcBalance(sourceChainKey, account))
-        setDestBalance(await getUsdcBalance(bridgeToKey, account))
+        applyBalance(setChainBalance, await getUsdcBalance(sourceChainKey, account))
+        applyBalance(setDestBalance, await getUsdcBalance(bridgeToKey, account))
         if (bridgeToKey === 'arc' || sourceChainKey === 'arc') {
           refreshBalance()
-          setArcUsdcBalance(await getUsdcBalance('arc', account))
+          applyBalance(setArcUsdcBalance, await getUsdcBalance('arc', account))
         }
       }
       else {
         // Send tab USDC — always Arc
         refreshBalance()
-        setArcUsdcBalance(await getUsdcBalance('arc', account))
+        applyBalance(setArcUsdcBalance, await getUsdcBalance('arc', account))
       }
       setTxResult(result)
       setView('success')
@@ -553,8 +559,8 @@ export default function TestnetSend() {
                   <button
                     title="Refresh balances"
                     onClick={() => account && Promise.all([
-                      getUsdcBalance(sourceChainKey, account).then(setChainBalance),
-                      getUsdcBalance(bridgeToKey, account).then(setDestBalance),
+                      getUsdcBalance(sourceChainKey, account).then(v => applyBalance(setChainBalance, v)),
+                      getUsdcBalance(bridgeToKey, account).then(v => applyBalance(setDestBalance, v)),
                     ])}
                     className="w-8 h-8 rounded-lg border border-[#1e2530] flex items-center justify-center text-[#8892a0] hover:text-white hover:border-[#00D4FF] transition-colors text-sm">
                     🔄
